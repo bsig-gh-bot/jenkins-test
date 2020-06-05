@@ -11,7 +11,9 @@ pipeline {
                     script {
                         githubscm.checkoutIfExists('github-release-test',
                         "$CHANGE_AUTHOR", "test", 'kiegroup', "$CHANGE_TARGET", true)
-                        sh(returnStdout: true, script: 'cat README.md').trim()
+                        /* println sh(returnStdout: true, script: 'cat README.md').trim() */
+                        /* sh(returnStdout: true, script: 'cat README.md').trim() */
+                        sh "git status"
                     }
                 }
             }
