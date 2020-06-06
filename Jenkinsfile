@@ -1,6 +1,7 @@
 @Library('shared-libraries')_
 
 pipeline {
+    agent none
     stages {
         stage('Print README') {
             steps {
