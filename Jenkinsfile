@@ -8,7 +8,8 @@ pipeline {
                 dir("github-release-test") {
                     script {
                         githubscm.checkoutIfExists('github-release-test',
-                        "$CHANGE_AUTHOR", "test", 'kiegroup', "$CHANGE_TARGET", true)
+                        "Kevin-Mok", "master", 'kiegroup',
+                        "master", false)
                         /* println sh(returnStdout: true, script: 'cat README.md').trim() */
                         /* sh(returnStdout: true, script: 'cat README.md').trim() */
                         /* sh "git status" */
