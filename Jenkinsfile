@@ -1,9 +1,6 @@
 @Library('shared-libraries')_
 
 pipeline {
-    agent {
-        label 'readme-tagger'
-    }
     stages {
         stage('Print README') {
             steps {
