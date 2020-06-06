@@ -13,7 +13,8 @@ pipeline {
                         "$CHANGE_AUTHOR", "test", 'kiegroup', "$CHANGE_TARGET", true)
                         /* println sh(returnStdout: true, script: 'cat README.md').trim() */
                         /* sh(returnStdout: true, script: 'cat README.md').trim() */
-                        sh "git status"
+                        /* sh "git status" */
+                        sh "ls -la"
                     }
                 }
             }
