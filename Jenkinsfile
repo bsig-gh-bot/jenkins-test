@@ -1,19 +1,19 @@
-@Library('shared-libraries')_
-
 pipeline {
     agent any
+    environment {
+        GITHUB_TOKEN = credentials('nzxt-jenkins')
+        GOPATH = "$WORKSPACE/go"
+        PATH = "$PATH:$GOPATH/bin"
+    }
     stages {
-        stage('Print README') {
+        stage('Release') {
             steps {
                 script {
-                    cleanWs()
-                    /* githubscm.checkoutIfExists('github-release-test', */
-                        /* "Kevin-Mok", "master", 'kiegroup', */
-                        /* "master", false) */
-                    /* githubscm.tag('Test', 'test@example.com', 'v1.21') */
-                    githubscm.tagRepository('github-release-test',
-                        "Kevin-Mok", "master", 'Test',
-                        'test@example.com', 'v1.23')
+                    sh """
+                    echo $PATH
+                    go get github.com/github-release/github-release
+                    github-release info -u Kevin-Mok -r github-release-test
+                    """
                 }
             }
         }
