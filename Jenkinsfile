@@ -3,17 +3,15 @@
 pipeline {
     agent any
     stages {
-        stage('Print README') {
+        stage('Tag repo') {
             steps {
                 script {
                     cleanWs()
-                    /* githubscm.checkoutIfExists('github-release-test', */
-                        /* "Kevin-Mok", "master", 'kiegroup', */
-                        /* "master", false) */
-                    /* githubscm.tag('Test', 'test@example.com', 'v1.21') */
-                    githubscm.tagRepository('github-release-test',
-                        "Kevin-Mok", "master", 'Test',
-                        'test@example.com', 'v1.23')
+                    githubscm.checkoutIfExists('github-release-test',
+                        "Kevin-Mok", "master", 'kiegroup',
+                        "master", false)
+                    githubscm.tagRepository('Test', 'test@example.com', "$BUILD_TAG", "$BUILD_TAG")
+                    githubscm.pushObject('origin', "$BUILD_TAG", "bad")
                 }
             }
         }
