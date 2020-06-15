@@ -1,5 +1,3 @@
-@Library('shared-libraries')_
-
 pipeline {
     agent any
     parameters {
@@ -11,11 +9,11 @@ pipeline {
             steps {
                 script {
                     cleanWs()
-                    githubscm.checkoutIfExists('github-release-test',
-                        "Kevin-Mok", "master", 'kiegroup',
-                        "master", false)
-                    githubscm.tagRepository('Test', 'test@example.com', "$BUILD_TAG", "$BUILD_TAG")
-                    githubscm.pushObject('origin', "$BUILD_TAG", "bad")
+                    if(params.RELEASE) {
+                        echo "Yes equal - running the stage"
+                    } else {
+                        echo "Not equal - skipping the stage"
+                    }
                 }
             }
         }
