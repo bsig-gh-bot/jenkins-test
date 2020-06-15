@@ -20,42 +20,16 @@ pipeline {
             cleanWs()
         }
       }
-      stage('Clone repositories') { 
-        steps {
-            wrap([$class: 'BuildUser']) {
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'kie-ci', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD']]) {
-                    sh 'git clone -c user.name="${BUILD_USER}" -c user.email="${BUILD_USER_EMAIL}" -b $BASE_BRANCH https://$GIT_USERNAME:$GIT_PASSWORD@github.com/kiegroup/kogito-runtimes'
-                    sh 'git clone -c user.name="${BUILD_USER}" -c user.email="${BUILD_USER_EMAIL}" -b $BASE_BRANCH https://$GIT_USERNAME:$GIT_PASSWORD@github.com/kiegroup/kogito-apps'
-                    sh 'git clone -c user.name="${BUILD_USER}" -c user.email="${BUILD_USER_EMAIL}" -b $BASE_BRANCH https://$GIT_USERNAME:$GIT_PASSWORD@github.com/kiegroup/kogito-examples'
-                  }
-            }
-          sh 'chmod -R +x kogito-runtimes/scripts'
-        }
-      }
       stage('Prepare Maven settings'){
           steps {
             configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
-                sh "cd kogito-runtimes && mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' | tee .mvn/maven.config"
-                sh "cd kogito-apps && mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' | tee .mvn/maven.config"
-                sh "cd kogito-examples && mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' | tee .mvn/maven.config"
+                sh "cat $SETTINGS_XML_FILE"
             }
           }
       }
       stage('Approval') {
         steps {
             input message: 'Is release ready to be pushed?', ok: 'Go ahead and release'
-        }
-      }
-      stage('Push release tag') {
-        steps {
-            sh 'cd kogito-runtimes/scripts/release && ./05-tag-and-push-local-release-branches.sh ${params.RELEASE_VERSION} ${params.TARGET_BRANCH}'        
-        }
-      }
-      stage('Deploy to maven') {
-        steps {
-          configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]) {
-              sh 'cd kogito-runtimes/scripts/release && ./06-deploy-release.sh $SETTINGS_XML_FILE'
-          }        
         }
       }
     }
