@@ -4,6 +4,12 @@ pipeline {
         maven 'kie-maven-3.6.2'
         jdk 'kie-jdk11'
     }
+    parameters {
+        string(name: 'RELEASE_VERSION', defaultValue: '', description: 'Kogito release version')
+        string(name: 'BASE_BRANCH', defaultValue: 'master', description: 'Base branch to release from. Usually from master but if releasing a minor version version the use ex: 0.9.x')
+        string(name: 'TARGET_BRANCH', defaultValue: '', description: 'Branch to be pushed upstream. Usually not needed if just releasing from master and no need for maintenance branch.')
+        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
+    }
     environment {
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
     }
