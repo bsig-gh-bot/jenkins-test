@@ -2,6 +2,10 @@
 
 pipeline {
     agent any
+    parameters {
+        booleanParam(name: 'RELEASE', defaultValue: false,
+            description: 'Is this build for a release?')
+    }
     stages {
         stage('Tag repo') {
             steps {
