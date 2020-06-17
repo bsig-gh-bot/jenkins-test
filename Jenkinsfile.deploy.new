@@ -10,30 +10,43 @@ pipeline {
         booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
     }
     environment {
-        KOGITO_CI_EMAIL_TO = credentials('KOGITO_CI_EMAIL_TO')
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
     }
     tools {
         maven 'kie-maven-3.6.2'
         jdk 'kie-jdk11'
     }
-    triggers {
-        cron ('H 9 * * *')
-    }
     options {
         buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '5')
         timeout(time: 120, unit: 'MINUTES')
     }
     stages {
-        stage('Build kogito-runtimes') {
+        stage("Initialize") {
             steps {
                 script {
-                    if(params.RELEASE) {
-                        configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
-                            sh "mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' > .mvn/maven.config"
-                        }
+                    if (params.DISPLAY_NAME != "") {
+                        currentBuild.displayName = params.DISPLAY_NAME
                     }
-                    maven.runMavenWithSubmarineSettings('clean install', false)
+
+                    if (env.BRANCH_NAME != "") {
+                        // Switch to branch if not on a multibranch pipeline
+                        env.BRANCH_NAME = params.BUILD_BRANCH_NAME
+                    }
+                }
+            }
+        }
+        stage('Build kogito-runtimes') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: env.BRANCH_NAME]], browser: [$class: 'GithubWeb', repoUrl: 'git@github.com:kiegroup/kogito-runtimes.git'], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'kogito-runtimes']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'kie-ci-user-key', url: 'git@github.com:kiegroup/kogito-runtimes.git']]])
+                dir("kogito-runtimes") {
+                    script {
+                        if(params.RELEASE) {
+                            configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
+                                sh "mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' > .mvn/maven.config"
+                            }
+                        }
+                        maven.runMavenWithSubmarineSettings('clean install', false)
+                    }
                 }
             }
         }
@@ -86,8 +99,10 @@ pipeline {
         }
         stage('Deploy kogito-runtimes') {
             steps {
-                script {
-                    maven.runMavenWithSubmarineSettings('clean deploy', true)
+                dir("kogito-runtimes") {
+                    script {
+                        maven.runMavenWithSubmarineSettings('clean deploy', true)
+                    }
                 }
             }
         }
@@ -95,7 +110,7 @@ pipeline {
             steps {
                 dir("kogito-apps") {
                     script {
-                      maven.runMavenWithSubmarineSettings('clean deploy', true)
+                        maven.runMavenWithSubmarineSettings('clean deploy', true)
                     }
                 }
             }
@@ -104,7 +119,7 @@ pipeline {
             steps {
                 dir("kogito-examples") {
                     script {
-                      maven.runMavenWithSubmarineSettings('clean deploy', true)
+                        maven.runMavenWithSubmarineSettings('clean deploy', true)
                     }
                 }
             }
@@ -124,18 +139,6 @@ pipeline {
         }
     }
     post {
-        failure {
-            emailext body: 'Kogito daily snapshot deploy #${BUILD_NUMBER} was: ' + "${currentBuild.currentResult}" +  '\n' +
-                    'Please look here: ${BUILD_URL} ',
-                     subject: 'Kogito daily snapshot deploy #${BRANCH_NAME}',
-                     to: env.KOGITO_CI_EMAIL_TO
-        }
-        unstable {
-            emailext body: 'Kogito daily snapshot deploy #${BUILD_NUMBER} was: ' + "${currentBuild.currentResult}" +  '\n' +
-                     'Please look here: ${BUILD_URL} ',
-                     subject: 'Kogito daily snapshot deploy #${BRANCH_NAME}',
-                     to: env.KOGITO_CI_EMAIL_TO
-        }
         always {
             junit '**/target/surefire-reports/**/*.xml, **/target/failsafe-reports/**/*.xml'
             cleanWs()
