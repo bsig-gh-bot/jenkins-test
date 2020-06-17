@@ -26,6 +26,11 @@ pipeline {
         stage('Build kogito-runtimes') {
             steps {
                 script {
+                    if(params.RELEASE) {
+                        configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
+                            sh "mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' > .mvn/maven.config"
+                        }
+                    }
                     maven.runMavenWithSubmarineSettings('clean install', false)
                 }
             }
@@ -35,7 +40,12 @@ pipeline {
                 checkout([$class: 'GitSCM', branches: [[name: env.BRANCH_NAME]], browser: [$class: 'GithubWeb', repoUrl: 'git@github.com:kiegroup/kogito-apps.git'], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'kogito-apps']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'kie-ci-user-key', url: 'git@github.com:kiegroup/kogito-apps.git']]])
                 dir("kogito-apps") {
                     script {
-                      maven.runMavenWithSubmarineSettings('clean install', false)
+                        if(params.RELEASE) {
+                            configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
+                                sh "mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' > .mvn/maven.config"
+                            }
+                        }
+                        maven.runMavenWithSubmarineSettings('clean install', false)
                     }
                 }
             }
@@ -45,7 +55,12 @@ pipeline {
                 checkout([$class: 'GitSCM', branches: [[name: env.BRANCH_NAME]], browser: [$class: 'GithubWeb', repoUrl: 'git@github.com:kiegroup/kogito-examples.git'], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'kogito-examples']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'kie-ci-user-key', url: 'git@github.com:kiegroup/kogito-examples.git']]])
                 dir("kogito-examples") {
                     script {
-                         maven.runMavenWithSubmarineSettings('clean install', false)
+                        if(params.RELEASE) {
+                            configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
+                                sh "mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' > .mvn/maven.config"
+                            }
+                        }
+                        maven.runMavenWithSubmarineSettings('clean install', false)
                     }
                 }
             }
@@ -56,6 +71,11 @@ pipeline {
                 checkout([$class: 'GitSCM', branches: [[name: env.BRANCH_NAME]], browser: [$class: 'GithubWeb', repoUrl: 'git@github.com:kiegroup/kogito-examples.git'], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'kogito-examples-persistence']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'kie-ci-user-key', url: 'git@github.com:kiegroup/kogito-examples.git']]])
                 dir("kogito-examples-persistence") {
                     script {
+                        if(params.RELEASE) {
+                            configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
+                                sh "mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' > .mvn/maven.config"
+                            }
+                        }
                         // Don't run with tests so far, see: https://github.com/quarkusio/quarkus/issues/6885
                         maven.runMavenWithSubmarineSettings('clean install -Ppersistence', true)
                     }
