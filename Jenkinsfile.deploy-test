@@ -1,0 +1,53 @@
+@Library('shared-libraries')_
+
+pipeline {
+    agent any
+    parameters {
+        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
+    }
+    environment {
+        MAVEN_OPTS = '-Xms1024m -Xmx4g'
+    }
+    stages {
+        stage('Build kogito-runtimes') {
+            steps {
+                script {
+                    if(params.RELEASE) {
+                        configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
+                            sh "mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' > .mvn/maven.config"
+                        }
+                    }
+                    sh "pwd && cat .mvn/maven.config"
+                }
+            }
+        }
+        stage('Build kogito-examples') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: env.BRANCH_NAME]], browser: [$class: 'GithubWeb', repoUrl: 'git@github.com:kiegroup/kogito-examples.git'], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'kogito-examples']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'kie-ci-user-key', url: 'git@github.com:kiegroup/kogito-examples.git']]])
+                dir("kogito-examples") {
+                    script {
+                        if(params.RELEASE) {
+                            configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'jenkins-settings.xml', variable: 'SETTINGS_XML_FILE')]){
+                                sh "mkdir -p .mvn && echo '-B -s $WORKSPACE/jenkins-settings.xml' > .mvn/maven.config"
+                            }
+                        }
+                        sh "pwd && cat .mvn/maven.config"
+                    }
+                }
+            }
+        }
+        stage('Archive staging repository URL') {
+            input {
+                message "Enter staging repository URL:"
+                parameters {
+                    string(name: 'STAGING_REPO_URL')
+                }
+            }
+            steps {
+                sh "mkdir -p archive"
+                writeFile(file: "archive/staging-url.txt", text: "${STAGING_REPO_URL}")
+                archiveArtifacts(artifacts: "archive/staging-url.txt")
+            }
+        }
+    }
+}
