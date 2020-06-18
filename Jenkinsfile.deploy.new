@@ -36,14 +36,19 @@ pipeline {
             }
         }
         stage('Clone repositories') { 
-          steps {
-              checkout(githubScm.resolveRepository("kogito-runtimes", "kiegroup", env.BRANCH_NAME, false))
-              checkout(githubScm.resolveRepository("kogito-apps", "kiegroup", env.BRANCH_NAME, false))
-              checkout(githubScm.resolveRepository("kogito-examples", "kiegroup", env.BRANCH_NAME, false))
-              // Use a separate dir for persistence to not overwrite the test results
-              sh "mv kogito-examples{,-persistence}"
-              checkout(githubScm.resolveRepository("kogito-examples", "kiegroup", env.BRANCH_NAME, false))
-          }
+            steps {
+                dir("kogito-runtimes") {
+                    checkout(githubscm.resolveRepository("kogito-runtimes", "kiegroup", env.BRANCH_NAME, false))
+                }
+                dir("kogito-apps") {
+                    checkout(githubscm.resolveRepository("kogito-apps", "kiegroup", env.BRANCH_NAME, false))
+                }
+                dir("kogito-examples") {
+                    checkout(githubscm.resolveRepository("kogito-examples", "kiegroup", env.BRANCH_NAME, false))
+                }
+                // Use a separate dir for persistence to not overwrite the test results
+                sh "cp -r kogito-examples{,-persistence}"
+            }
         }
         stage('Prepare Maven settings'){
             when {
@@ -51,7 +56,6 @@ pipeline {
             }
             steps {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
-                    sh "mkdir kogito-{runtimes,apps,examples,examples-persistence}/.mvn"
                     sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
                 }
             }
