@@ -1,0 +1,70 @@
+@Library('jenkins-pipeline-shared-libraries')_
+
+pipeline {
+    agent any
+    parameters {
+        booleanParam(name: 'RELEASE', defaultValue: true, description: 'Is this build for a release?')
+    }
+    environment {
+        MAVEN_OPTS = '-Xms1024m -Xmx4g'
+    }
+    tools {
+        maven 'kie-maven-3.6.2'
+        jdk 'kie-jdk11'
+    }
+    stages {
+        stage('Clean workspace') { 
+            steps {
+                cleanWs()
+            }
+        }
+        stage('Clone repositories') { 
+            steps {
+                dir("kogito-examples") {
+                    checkout(githubscm.resolveRepository("kogito-examples", "kiegroup", "master", false))
+                }
+            }
+        }
+        stage('Prepare Maven settings'){
+            when {
+                expression { return params.RELEASE }
+            }
+            steps {
+                configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
+                    sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-examples/.mvn/maven.config"
+                }
+            }
+        }
+        stage('Build kogito-examples') {
+            steps {
+                dir("kogito-examples") {
+                    script {
+                        maven.runMavenWithSubmarineSettings('clean install', false)
+                    }
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                dir("kogito-examples") {
+                    script {
+                        maven.runMavenWithSubmarineSettings('clean deploy', true)
+                    }
+                }
+            }
+        }
+        stage('Archive staging repository URL') {
+            input {
+                message "Enter staging repository URL:"
+                parameters {
+                    string(name: 'STAGING_REPO_URL')
+                }
+            }
+            steps {
+                sh "mkdir -p archive"
+                writeFile(file: "archive/staging-url.txt", text: "${STAGING_REPO_URL}")
+                archiveArtifacts(artifacts: "archive/staging-url.txt")
+            }
+        }
+    }
+}

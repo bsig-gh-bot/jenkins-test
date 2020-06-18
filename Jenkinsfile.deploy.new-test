@@ -8,12 +8,11 @@ pipeline {
     environment {
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
     }
+    tools {
+        maven 'kie-maven-3.6.2'
+        jdk 'kie-jdk11'
+    }
     stages {
-        stage('Clean workspace') { 
-            steps {
-                cleanWs()
-            }
-        }
         stage('Clone repositories') { 
             steps {
                 dir("kogito-runtimes") {
