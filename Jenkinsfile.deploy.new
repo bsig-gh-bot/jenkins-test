@@ -97,7 +97,7 @@ pipeline {
                 }
             }
         }
-        stage('Deploy') {
+        stage('Deploy artifacts') {
             steps {
                 dir("kogito-runtimes") {
                     script {
@@ -117,6 +117,9 @@ pipeline {
             }
         }
         stage('Archive staging repository URL') {
+            when {
+                expression { return params.RELEASE }
+            }
             input {
                 message "Enter staging repository URL:"
                 parameters {
@@ -124,9 +127,8 @@ pipeline {
                 }
             }
             steps {
-                sh "mkdir -p archive"
-                writeFile(file: "archive/staging-url.txt", text: "${STAGING_REPO_URL}")
-                archiveArtifacts(artifacts: "archive/staging-url.txt")
+                writeFile(file: "staging-url.txt", text: "${STAGING_REPO_URL}")
+                archiveArtifacts(artifacts: "staging-url.txt")
             }
         }
     }
