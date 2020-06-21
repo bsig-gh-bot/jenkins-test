@@ -1,16 +1,19 @@
 pipeline {
     agent any
+    /* parameters {
+        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
+    } */
     stages {
         stage('Archive staging repository URL') {
             steps {
                 script {
-                    def STAGING_REPO_URL = input(message: "Enter staging repository URL:", parameters: [text(name: 'STAGING_REPO_URL')])
-                    def STAGING_URL_FILE = "staging-url.txt"
+                    /* if (params.RELEASE) { */
+                    /* } */
                     def PROPERTIES_FILE = "deployment.properties"
-                    sh "echo ${STAGING_REPO_URL} > ${STAGING_URL_FILE}"
-                    sh "printf \"STAGING_REPO_URL=%s\" \"${STAGING_REPO_URL}\" > ${PROPERTIES_FILE}"
-                    writeFile(file: "${STAGING_URL_FILE}", text: "${STAGING_REPO_URL}")
-                    archiveArtifacts(artifacts: "${STAGING_URL_FILE}, ${PROPERTIES_FILE}")
+                    sh "wget --auth-no-challenge --user=kevin --password=112ef7228e7a8cea5435473f9416cb56e1 http://localhost:8090/job/2286/lastSuccessfulBuild/artifact/deployment.properties -O ${PROPERTIES_FILE}"
+                    def props = readProperties file:"${PROPERTIES_FILE}"
+                    def Var1= props['STAGING_REPO_URL']
+                    echo "Var1=${Var1}"
                 }
             }
         }
