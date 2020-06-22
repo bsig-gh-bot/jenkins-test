@@ -1,9 +1,10 @@
 @Library('jenkins-pipeline-shared-libraries')_
 
 pipeline {
-    agent any
+    agent {label 'kogito-cloud-image && !master'}
     parameters {
-        booleanParam(name: 'RELEASE', defaultValue: true, description: 'Is this build for a release?')
+        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
+        string(name: 'MAVEN_VERSION', defaultValue: '3.6.2', description: 'Only used if RELEASE.')
     }
     environment {
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
@@ -15,17 +16,9 @@ pipeline {
     stages {
         stage('Clone repositories') { 
             steps {
-                dir("kogito-runtimes") {
-                    checkout(githubscm.resolveRepository("kogito-runtimes", "kiegroup", "master", false))
-                }
-                dir("kogito-apps") {
-                    checkout(githubscm.resolveRepository("kogito-apps", "kiegroup", "master", false))
-                }
                 dir("kogito-examples") {
-                    checkout(githubscm.resolveRepository("kogito-examples", "kiegroup", "master", false))
+                    checkout(githubscm.resolveRepository("kogito-examples", "kiegroup", env.BRANCH_NAME, false))
                 }
-                // Use a separate dir for persistence to not overwrite the test results
-                sh "cp -r kogito-examples{,-persistence}"
             }
         }
         stage('Prepare Maven settings'){
@@ -36,22 +29,9 @@ pipeline {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
                     sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
                 }
-            }
-        }
-        stage('Build kogito-runtimes') {
-            steps {
-                dir("kogito-runtimes") {
+                dir("kogito-examples") {
                     script {
-                        maven.runMavenWithSubmarineSettings('clean install', false)
-                    }
-                }
-            }
-        }
-        stage('Build kogito-apps') {
-            steps {
-                dir("kogito-apps") {
-                    script {
-                        maven.runMavenWithSubmarineSettings('clean install', false)
+                        maven.updateMavenVersion(params.MAVEN_VERSION)
                     }
                 }
             }
@@ -65,28 +45,8 @@ pipeline {
                 }
             }
         }
-        stage('Build kogito-examples with persistence') {
+        stage('Deploy artifacts') {
             steps {
-                dir("kogito-examples-persistence") {
-                    script {
-                        // Don't run with tests so far, see: https://github.com/quarkusio/quarkus/issues/6885
-                        maven.runMavenWithSubmarineSettings('clean install -Ppersistence', true)
-                    }
-                }
-            }
-        }
-        stage('Deploy') {
-            steps {
-                dir("kogito-runtimes") {
-                    script {
-                        maven.runMavenWithSubmarineSettings('clean deploy', true)
-                    }
-                }
-                dir("kogito-apps") {
-                    script {
-                        maven.runMavenWithSubmarineSettings('clean deploy', true)
-                    }
-                }
                 dir("kogito-examples") {
                     script {
                         maven.runMavenWithSubmarineSettings('clean deploy', true)
@@ -95,16 +55,15 @@ pipeline {
             }
         }
         stage('Archive staging repository URL') {
-            input {
-                message "Enter staging repository URL:"
-                parameters {
-                    string(name: 'STAGING_REPO_URL')
-                }
-            }
             steps {
-                sh "mkdir -p archive"
-                writeFile(file: "archive/staging-url.txt", text: "${STAGING_REPO_URL}")
-                archiveArtifacts(artifacts: "archive/staging-url.txt")
+                script {
+                    if (params.RELEASE) {
+                        def STAGING_REPO_URL = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
+                        def PROPERTIES_FILE = "deployment.properties"
+                        sh "printf \"staging-repo.url=%s\" \"${STAGING_REPO_URL}\" > ${PROPERTIES_FILE}"
+                        archiveArtifacts(artifacts: "${PROPERTIES_FILE}")
+                    }
+                }
             }
         }
     }

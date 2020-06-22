@@ -1,0 +1,18 @@
+@Library('jenkins-pipeline-shared-libraries')_
+
+pipeline {
+    agent any
+    stages {
+        stage('Clone repositories') { 
+            steps {
+                dir("kogito-apps") {
+                    script {
+                        checkout(githubscm.resolveRepository("kogito-examples", "kiegroup", "master", false))
+                        maven.updateMavenVersion('3.6.3')
+                        sh "cat pom.xml"
+                    }
+                }
+            }
+        }
+    }
+}
