@@ -1,0 +1,41 @@
+@Library('jenkins-pipeline-shared-libraries')_
+
+pipeline {
+    agent any
+    parameters {
+        booleanParam(name: 'RELEASE', defaultValue: true, description: 'Is this build for a release?')
+    }
+    environment {
+        MAVEN_OPTS = '-Xms1024m -Xmx4g'
+    }
+    stages {
+        stage('Clone repositories') { 
+            steps {
+                dir("kogito-apps") {
+                    checkout(githubscm.resolveRepository("kogito-apps", "kiegroup", "master", false))
+                }
+            }
+        }
+        stage('Prepare Maven settings'){
+            when {
+                expression { return params.RELEASE }
+            }
+            steps {
+                configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
+                    sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-apps/.mvn/maven.config"
+                }
+            }
+        }
+        stage('Build kogito-apps') {
+            steps {
+                dir("kogito-apps") {
+                    script {
+                        maven.runMavenWithSubmarineSettings('clean install', false)
+                        sh "git status"
+                        sh "git diff"
+                    }
+                }
+            }
+        }
+    }
+}
