@@ -1,12 +1,17 @@
-@Library('jenkins-pipeline-shared-libraries')_
+@Library('jenkins-pipeline-shared-libraries-kmok')_
 
 pipeline {
     agent any
     parameters {
         booleanParam(name: 'RELEASE', defaultValue: true, description: 'Is this build for a release?')
+        string(name: 'MAVEN_VERSION', defaultValue: '3.6.2')
     }
     environment {
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
+    }
+    tools {
+        maven 'kie-maven-3.6.2'
+        jdk 'kie-jdk11'
     }
     stages {
         stage('Clone repositories') { 
@@ -23,6 +28,11 @@ pipeline {
             steps {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
                     sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-apps/.mvn/maven.config"
+                }
+                dir("kogito-apps") {
+                    script {
+                        maven.updateMavenVersion(params.MAVEN_VERSION)
+                    }
                 }
             }
         }

@@ -8,6 +8,7 @@ pipeline {
         string(name: 'DISPLAY_NAME', defaultValue: '', description: 'Setup a specific build display name')
         string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Which branch to build ? Set if you are not on a multibranch pipeline.')
         booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
+        string(name: 'MAVEN_VERSION', defaultValue: '3.6.2', description: 'Only used if RELEASE.')
     }
     environment {
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
@@ -57,6 +58,26 @@ pipeline {
             steps {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
                     sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
+                }
+                dir("kogito-runtimes") {
+                    script {
+                        maven.updateMavenVersion(params.MAVEN_VERSION)
+                    }
+                }
+                dir("kogito-apps") {
+                    script {
+                        maven.updateMavenVersion(params.MAVEN_VERSION)
+                    }
+                }
+                dir("kogito-examples") {
+                    script {
+                        maven.updateMavenVersion(params.MAVEN_VERSION)
+                    }
+                }
+                dir("kogito-examples-persistence") {
+                    script {
+                        maven.updateMavenVersion(params.MAVEN_VERSION)
+                    }
                 }
             }
         }
@@ -120,13 +141,10 @@ pipeline {
             steps {
                 script {
                     if (params.RELEASE) {
-                        def STAGING_REPO_URL = input(message: "Enter staging repository URL:", parameters: [text(name: 'STAGING_REPO_URL')])
-                        def STAGING_URL_FILE = "staging-url.txt"
+                        def STAGING_REPO_URL = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
                         def PROPERTIES_FILE = "deployment.properties"
-                        sh "echo ${STAGING_REPO_URL} > ${STAGING_URL_FILE}"
-                        sh "printf \"STAGING_REPO_URL=%s\" \"${STAGING_REPO_URL}\" > ${PROPERTIES_FILE}"
-                        writeFile(file: "${STAGING_URL_FILE}", text: "${STAGING_REPO_URL}")
-                        archiveArtifacts(artifacts: "${STAGING_URL_FILE}, ${PROPERTIES_FILE}")
+                        sh "printf \"staging-repo.url=%s\" \"${STAGING_REPO_URL}\" > ${PROPERTIES_FILE}"
+                        archiveArtifacts(artifacts: "${PROPERTIES_FILE}")
                     }
                 }
             }
