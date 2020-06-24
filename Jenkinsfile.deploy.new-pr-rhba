@@ -2,24 +2,24 @@
 
 pipeline {
     agent {label 'kogito-cloud && !master'}
+    environment {
+        NEW_BRANCH = "${JOB_BASE_NAME}-${BUILD_NUMBER}"
+        GIT_USER = "Jenkins CI"
+        GIT_USER_EMAIL = "jenkins@rhba-jenkins.rhev-ci-vms.eng.rdu2.redhat.com"
+        COMMIT_MSG = "Update Maven version for release"
+        CREDENTIALS_ID = "kmok-github-bot"
+    }
     stages {
         stage('Clone repositories') { 
             steps {
-                script {
-                    def branch = "${JOB_BASE_NAME}-${BUILD_NUMBER}"
-                    def user = "Jenkins CI"
-                    def userEmail = "jenkins@rhba-jenkins.rhev-ci-vms.eng.rdu2.redhat.com"
-                    def commitMsg = "Update Maven version for release"
-                    def credentialsId = "kmok-github-bot"
-                }
                 dir("github-release-test") {
                     script {
                         checkout(githubscm.resolveRepository("github-release-test", "Kevin-Mok-Bot", "master", false))
-                        githubscm.createBranch(branch)
+                        githubscm.createBranch("${NEW_BRANCH}")
                         sh "printf \"${BUILD_TAG}\n\" >> README.md"
-                        githubscm.commitChanges("${user}", "${userEmail}", "${commitMsg}")
-                        githubscm.pushObject("origin", "${branch}", "${credentialsId}")
-                        githubscm.createPR("${commitMsg}", "master", "${credentialsId}")
+                        githubscm.commitChanges("${GIT_USER}", "${GIT_USER_EMAIL}", "${COMMIT_MSG}")
+                        githubscm.pushObject("origin", "${NEW_BRANCH}", "${CREDENTIALS_ID}")
+                        githubscm.createPR("${COMMIT_MSG}", "master", "${CREDENTIALS_ID}")
                     }
                 }
             }
