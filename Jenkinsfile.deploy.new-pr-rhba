@@ -8,9 +8,9 @@ pipeline {
                 dir("github-release-test") {
                     script {
                         checkout(githubscm.resolveRepository("github-release-test", "Kevin-Mok-Bot", "master", false))
-                        /* def branch = "${JOB_BASE_NAME}-${BUILD_NUMBER}" */
-                        def branch = "2415-8"
-                        /* githubscm.createBranch(branch) */
+                        def branch = "${JOB_BASE_NAME}-${BUILD_NUMBER}"
+                        /* def branch = "2415-8" */
+                        githubscm.createBranch(branch)
                         sh "git checkout ${branch}"
                         sh "printf \"${BUILD_TAG}\n\" >> README.md"
                         githubscm.commitChanges("Jenkins", "nzxt@jenkins.com", "Update Maven version")
