@@ -123,13 +123,17 @@ pipeline {
                 expression { return params.RELEASE }
             }
             steps {
-                def branch = "${JOB_BASE_NAME}-${BUILD_NUMBER}"
-                def commitMsg = "Update Maven version for release"
-                def credentialsId = "kmok-github-bot"
+                script {
+                    def branch = "${JOB_BASE_NAME}-${BUILD_NUMBER}"
+                    def user = "Jenkins CI"
+                    def userEmail = "jenkins@rhba-jenkins.rhev-ci-vms.eng.rdu2.redhat.com"
+                    def commitMsg = "Update Maven version for release"
+                    def credentialsId = "kmok-github-bot"
+                }
                 dir("kogito-runtimes") {
                     script {
                         githubscm.createBranch("${branch}")
-                        githubscm.commitChanges("${GIT_COMMITTER_NAME}", "${GIT_COMMITTER_EMAIL}", "${commitMsg}")
+                        githubscm.commitChanges("${user}", "${userEmail}", "${commitMsg}")
                         githubscm.pushObject("origin", "${branch}", "${credentialsId}")
                         githubscm.createPR("${commitMsg}", "master", "${credentialsId}")
                     }
@@ -137,7 +141,7 @@ pipeline {
                 dir("kogito-apps") {
                     script {
                         githubscm.createBranch("${branch}")
-                        githubscm.commitChanges("${GIT_COMMITTER_NAME}", "${GIT_COMMITTER_EMAIL}", "${commitMsg}")
+                        githubscm.commitChanges("${user}", "${userEmail}", "${commitMsg}")
                         githubscm.pushObject("origin", "${branch}", "${credentialsId}")
                         githubscm.createPR("${commitMsg}", "master", "${credentialsId}")
                     }
@@ -145,7 +149,7 @@ pipeline {
                 dir("kogito-examples") {
                     script {
                         githubscm.createBranch("${branch}")
-                        githubscm.commitChanges("${GIT_COMMITTER_NAME}", "${GIT_COMMITTER_EMAIL}", "${commitMsg}")
+                        githubscm.commitChanges("${user}", "${userEmail}", "${commitMsg}")
                         githubscm.pushObject("origin", "${branch}", "${credentialsId}")
                         githubscm.createPR("${commitMsg}", "master", "${credentialsId}")
                     }

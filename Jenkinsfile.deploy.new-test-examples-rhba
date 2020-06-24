@@ -1,9 +1,9 @@
-@Library('jenkins-pipeline-shared-libraries')_
+@Library('jenkins-pipeline-shared-libraries-kmok')_
 
 pipeline {
-    agent {label 'kogito-cloud-image && !master'}
+    agent {label 'kogito-cloud && !master'}
     parameters {
-        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
+        booleanParam(name: 'RELEASE', defaultValue: true, description: 'Is this build for a release?')
         string(name: 'MAVEN_VERSION', defaultValue: '3.6.2', description: 'Only used if RELEASE.')
     }
     environment {
@@ -17,7 +17,7 @@ pipeline {
         stage('Clone repositories') { 
             steps {
                 dir("kogito-examples") {
-                    checkout(githubscm.resolveRepository("kogito-examples", "kiegroup", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("kogito-examples", "Kevin-Mok-Bot", "master", false))
                 }
             }
         }
@@ -27,7 +27,7 @@ pipeline {
             }
             steps {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
-                    sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
+                    sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-examples/.mvn/maven.config"
                 }
                 dir("kogito-examples") {
                     script {
@@ -50,6 +50,24 @@ pipeline {
                 dir("kogito-examples") {
                     script {
                         maven.runMavenWithSubmarineSettings('clean deploy', true)
+                    }
+                }
+            }
+        }
+        stage('Create PR'){
+            when {
+                expression { return params.RELEASE }
+            }
+            steps {
+                dir("kogito-examples") {
+                    script {
+                        def branch = "${JOB_BASE_NAME}-${BUILD_NUMBER}"
+                        def commitMsg = "Update Maven version for release"
+                        def credentialsId = "kmok-github-bot"
+                        githubscm.createBranch("${branch}")
+                        githubscm.commitChanges("${GIT_COMMITTER_NAME}", "${GIT_COMMITTER_EMAIL}", "${commitMsg}")
+                        githubscm.pushObject("origin", "${branch}", "${credentialsId}")
+                        githubscm.createPR("${commitMsg}", "master", "${credentialsId}")
                     }
                 }
             }
