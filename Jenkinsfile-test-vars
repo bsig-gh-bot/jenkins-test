@@ -1,0 +1,17 @@
+pipeline {
+    agent any
+    stages {
+        stage('Clone repositories') { 
+            steps {
+                def prLink = "a"
+                dir("kogito-runtimes") {
+                    script {
+                        sh "echo ${prLink}"
+                        prLink = "b"
+                        sh "echo ${prLink}"
+                    }
+                }
+            }
+        }
+    }
+}

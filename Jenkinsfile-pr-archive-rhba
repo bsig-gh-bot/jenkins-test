@@ -23,7 +23,7 @@ pipeline {
                         githubscm.pushObject("origin", "${NEW_BRANCH}", "${CREDENTIALS_ID}")
                         def prLink = githubscm.createPR("${COMMIT_MSG}", "master", "${CREDENTIALS_ID}")
                         /* sh "echo ${prLink}" */
-                        sh "printf \"github-release-test.pr=%s\" \"${prLink}\" > ${PROPERTIES_FILE}"
+                        sh "printf \"github-release-test.pr=%s\n\" \"${prLink}\" > ${PROPERTIES_FILE}"
                     }
                 }
             }
