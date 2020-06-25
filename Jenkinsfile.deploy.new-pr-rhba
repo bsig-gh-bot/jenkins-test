@@ -19,7 +19,8 @@ pipeline {
                         sh "printf \"${BUILD_TAG}\n\" >> README.md"
                         githubscm.commitChanges("${GIT_USER}", "${GIT_USER_EMAIL}", "${COMMIT_MSG}")
                         githubscm.pushObject("origin", "${NEW_BRANCH}", "${CREDENTIALS_ID}")
-                        githubscm.createPR("${COMMIT_MSG}", "master", "${CREDENTIALS_ID}")
+                        def prLink = githubscm.createPR("${COMMIT_MSG}", "master", "${CREDENTIALS_ID}")
+                        sh "echo ${prLink}"
                     }
                 }
             }
