@@ -8,7 +8,8 @@ pipeline {
         GIT_USER_EMAIL = "jenkins@rhba-jenkins.rhev-ci-vms.eng.rdu2.redhat.com"
         COMMIT_MSG = "Update Maven version for release"
         CREDENTIALS_ID = "kmok-github-bot"
-        PROPERTIES_FILE = "deployment.properties"
+        PROPERTIES_FILE_NAME = "deployment.properties"
+        PROPERTIES_FILE = "${WORKSPACE}/${PROPERTIES_FILE_NAME}"
     }
     stages {
         stage('Clone repositories') { 
@@ -32,7 +33,7 @@ pipeline {
                 script {
                     def STAGING_REPO_URL = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
                     sh "printf \"staging-repo.url=%s\" \"${STAGING_REPO_URL}\" >> ${PROPERTIES_FILE}"
-                    archiveArtifacts(artifacts: "${PROPERTIES_FILE}")
+                    archiveArtifacts(artifacts: "${PROPERTIES_FILE_NAME}")
                 }
             }
         }

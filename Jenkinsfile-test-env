@@ -1,0 +1,14 @@
+pipeline {
+    agent any
+    environment {
+        PROPERTIES_FILE_NAME = "deployment.properties"
+        PROPERTIES_FILE = "${WORKSPACE}/${PROPERTIES_FILE_NAME}"
+    }
+    stages {
+        stage('Clone repositories') { 
+            steps {
+                sh "echo ${PROPERTIES_FILE_NAME}"
+            }
+        }
+    }
+}
