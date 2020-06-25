@@ -1,9 +1,7 @@
-@Library('jenkins-pipeline-shared-libraries')_
+@Library('jenkins-pipeline-shared-libraries-kmok')_
 
 pipeline {
-    agent {
-        label 'kie-rhel7 && kie-mem16g'
-    }
+    agent {label 'kogito-cloud && !master'}
     parameters {
         string(name: 'DISPLAY_NAME', defaultValue: '', description: 'Setup a specific build display name')
         string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Which branch to build ? Set if you are not on a multibranch pipeline.')
@@ -22,35 +20,17 @@ pipeline {
         maven 'kie-maven-3.6.2'
         jdk 'kie-jdk11'
     }
-    options {
-        buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '5')
-        timeout(time: 120, unit: 'MINUTES')
-    }
     stages {
-        stage("Initialize") {
-            steps {
-                script {
-                    if (params.DISPLAY_NAME != "") {
-                        currentBuild.displayName = params.DISPLAY_NAME
-                    }
-
-                    if (env.BRANCH_NAME != "") {
-                        // Switch to branch if not on a multibranch pipeline
-                        env.BRANCH_NAME = params.BUILD_BRANCH_NAME
-                    }
-                }
-            }
-        }
         stage('Clone repositories') { 
             steps {
                 dir("kogito-runtimes") {
-                    checkout(githubscm.resolveRepository("kogito-runtimes", "kiegroup", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("kogito-runtimes", "Kevin-Mok-Bot", "master", false))
                 }
                 dir("kogito-apps") {
-                    checkout(githubscm.resolveRepository("kogito-apps", "kiegroup", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("kogito-apps", "Kevin-Mok-Bot", "master", false))
                 }
                 dir("kogito-examples") {
-                    checkout(githubscm.resolveRepository("kogito-examples", "kiegroup", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("kogito-examples", "Kevin-Mok-Bot", "master", false))
                 }
                 // Use a separate dir for persistence to not overwrite the test results
                 sh "cp -r kogito-examples{,-persistence}"
@@ -65,11 +45,6 @@ pipeline {
                     sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
                 }
                 dir("kogito-runtimes") {
-                    script {
-                        maven.updateMavenVersion(params.MAVEN_VERSION)
-                    }
-                }
-                dir("kogito-apps") {
                     script {
                         maven.updateMavenVersion(params.MAVEN_VERSION)
                     }
@@ -189,7 +164,6 @@ pipeline {
     post {
         always {
             junit '**/target/surefire-reports/**/*.xml, **/target/failsafe-reports/**/*.xml'
-            cleanWs()
         }
     }
 }
