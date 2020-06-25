@@ -1,0 +1,17 @@
+@Library('jenkins-pipeline-shared-libraries-kmok')_
+
+pipeline {
+    agent {label 'kogito-cloud && !master'}
+    stages {
+        stage('Clone repositories') { 
+            steps {
+                dir("github-release-test") {
+                    script {
+                        checkout([$class: 'GitSCM', branches: [[name: "master"]], browser: [$class: 'GithubWeb', repoUrl: 'git@github.com:Kevin-Mok-Bot/kogito-runtimes.git'], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'kogito-runtimes']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'kmok-github-bot', url: 'git@github.com:Kevin-Mok-Bot/kogito-runtimes.git']]])
+                        checkout(githubscm.resolveRepository("github-release-test", "Kevin-Mok-Bot", "master", false))
+                    }
+                }
+            }
+        }
+    }
+}
