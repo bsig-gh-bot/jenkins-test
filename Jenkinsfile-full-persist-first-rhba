@@ -24,6 +24,7 @@ pipeline {
         stage('Clone repositories') { 
             steps {
                 dir("kogito-runtimes") {
+                    checkout([$class: 'GitSCM', branches: [[name: "master"]], browser: [$class: 'GithubWeb', repoUrl: 'git@github.com:Kevin-Mok-Bot/kogito-runtimes.git'], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'kogito-runtimes']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'kmok-github-bot', url: 'git@github.com:Kevin-Mok-Bot/kogito-runtimes.git']]])
                     checkout(githubscm.resolveRepository("kogito-runtimes", "Kevin-Mok-Bot", "master", false))
                 }
                 dir("kogito-apps") {
