@@ -112,15 +112,6 @@ pipeline {
                         sh "printf \"kogito-runtimes.pr=%s\n\" \"${prLink}\" >> ${PROPERTIES_FILE}"
                     }
                 }
-                dir("kogito-apps") {
-                    script {
-                        githubscm.createBranch("${NEW_BRANCH}")
-                        githubscm.commitChanges("${GIT_USER}", "${GIT_USER_EMAIL}", "${COMMIT_MSG}", "pom.xml")
-                        githubscm.pushObject("origin", "${NEW_BRANCH}", "${CREDENTIALS_ID}")
-                        def prLink = githubscm.createPR("${COMMIT_MSG}", "master", "${CREDENTIALS_ID}")
-                        sh "printf \"kogito-apps.pr=%s\n\" \"${prLink}\" >> ${PROPERTIES_FILE}"
-                    }
-                }
                 dir("kogito-examples") {
                     script {
                         githubscm.createBranch("${NEW_BRANCH}")
@@ -166,7 +157,7 @@ pipeline {
     }
     post {
         always {
-            junit '**/target/surefire-reports/**/*.xml, **/target/failsafe-reports/**/*.xml', allowEmptyResults: true
+            junit testResults: '**/target/surefire-reports/**/*.xml, **/target/failsafe-reports/**/*.xml', allowEmptyResults: true
         }
     }
 }
