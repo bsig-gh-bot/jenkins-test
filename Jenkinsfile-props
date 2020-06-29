@@ -1,0 +1,40 @@
+@Library('jenkins-pipeline-shared-libraries')_
+
+def foo = [:]
+
+pipeline {
+    agent any
+    parameters {
+        booleanParam(name: 'RELEASE', defaultValue: true, description: 'Is this build for a release?')
+    }
+    environment {
+        PROPERTIES_FILE_NAME = "deployment.properties"
+        PROPERTIES_FILE = "${WORKSPACE}/${PROPERTIES_FILE_NAME}"
+    }
+    stages {
+        stage('Archive staging repository URL') {
+            steps {
+                script {
+                    foo['a'] = "A"
+                    foo['b'] = "B"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                if (params.RELEASE) {
+                    def bar = ""
+                    for(e in foo) {
+                        bar = "${bar}${e.key}=${e.value}\n"
+                    }
+                    echo bar
+                    writeFile(text: bar, file: PROPERTIES_FILE)
+                    /* sh "printf b >> ${PROPERTIES_FILE}" */
+                    archiveArtifacts(artifacts: PROPERTIES_FILE_NAME)
+                }
+            }
+        }
+    }
+}

@@ -1,5 +1,7 @@
 @Library('jenkins-pipeline-shared-libraries-kmok')_
 
+def deployProperties = [:]
+
 pipeline {
     agent {label 'kogito-cloud && !master'}
     parameters {
@@ -42,7 +44,7 @@ pipeline {
             }
             steps {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
-                    sh "echo '-B -s $MAVEN_SETTINGS_FILE' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
+                    sh "echo '-B -s ${MAVEN_SETTINGS_FILE}' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
                 }
                 dir("kogito-runtimes") {
                     script {
@@ -105,20 +107,18 @@ pipeline {
             steps {
                 dir("kogito-runtimes") {
                     script {
-                        githubscm.createBranch("${NEW_BRANCH}")
-                        githubscm.commitChanges("${GIT_USER}", "${GIT_USER_EMAIL}", "${COMMIT_MSG}", "pom.xml")
-                        githubscm.pushObject("origin", "${NEW_BRANCH}", "${CREDENTIALS_ID}")
-                        def prLink = githubscm.createPR("${COMMIT_MSG}", "master", "${CREDENTIALS_ID}")
-                        sh "printf \"kogito-runtimes.pr=%s\n\" \"${prLink}\" >> ${PROPERTIES_FILE}"
+                        githubscm.createBranch(NEW_BRANCH)
+                        githubscm.commitChanges(GIT_USER, GIT_USER_EMAIL, COMMIT_MSG, "pom.xml")
+                        githubscm.pushObject("origin", NEW_BRANCH, CREDENTIALS_ID)
+                        deployProperties["kogito-runtimes.pr"] = githubscm.createPR(COMMIT_MSG, "master", CREDENTIALS_ID)
                     }
                 }
                 dir("kogito-examples") {
                     script {
-                        githubscm.createBranch("${NEW_BRANCH}")
-                        githubscm.commitChanges("${GIT_USER}", "${GIT_USER_EMAIL}", "${COMMIT_MSG}", "pom.xml")
-                        githubscm.pushObject("origin", "${NEW_BRANCH}", "${CREDENTIALS_ID}")
-                        def prLink = githubscm.createPR("${COMMIT_MSG}", "master", "${CREDENTIALS_ID}")
-                        sh "printf \"kogito-examples.pr=%s\n\" \"${prLink}\" >> ${PROPERTIES_FILE}"
+                        githubscm.createBranch(NEW_BRANCH)
+                        githubscm.commitChanges(GIT_USER, GIT_USER_EMAIL, COMMIT_MSG, "pom.xml")
+                        githubscm.pushObject("origin", NEW_BRANCH, CREDENTIALS_ID)
+                        deployProperties["kogito-examples.pr"] = githubscm.createPR(COMMIT_MSG, "master", CREDENTIALS_ID)
                     }
                 }
             }
@@ -143,14 +143,12 @@ pipeline {
             }
         }
         stage('Archive staging repository URL') {
+            when {
+                expression { return params.RELEASE }
+            }
             steps {
                 script {
-                    if (params.RELEASE) {
-                        def STAGING_REPO_URL = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
-                        def PROPERTIES_FILE = "deployment.properties"
-                        sh "printf \"staging-repo.url=%s\" \"${STAGING_REPO_URL}\" >> ${PROPERTIES_FILE}"
-                        archiveArtifacts(artifacts: "${PROPERTIES_FILE_NAME}")
-                    }
+                    deployProperties["staging-repo.url"] = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
                 }
             }
         }
@@ -158,6 +156,16 @@ pipeline {
     post {
         always {
             junit testResults: '**/target/surefire-reports/**/*.xml, **/target/failsafe-reports/**/*.xml', allowEmptyResults: true
+            script {
+                if (params.RELEASE) {
+                    def propertiesStr = ""
+                    for(entry in deployProperties) {
+                        propertiesStr = "${propertiesStr}${entry.key}=${entry.value}\n"
+                    }
+                    writeFile(text: propertiesStr, file: PROPERTIES_FILE)
+                    archiveArtifacts(artifacts: PROPERTIES_FILE_NAME)
+                }
+            }
         }
     }
 }
