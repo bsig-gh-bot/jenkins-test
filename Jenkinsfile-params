@@ -1,0 +1,19 @@
+pipeline {
+    agent any
+    parameters {
+        string(name: 'PROJECT_VERSION')
+    }
+    environment {
+        VERSION = "${PROJECT_VERSION}"
+    }
+    stages {
+        stage('Archive staging repository URL') {
+            steps {
+                script {
+                    input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
+                    assert VERSION == 'z'
+                }
+            }
+        }
+    }
+}
