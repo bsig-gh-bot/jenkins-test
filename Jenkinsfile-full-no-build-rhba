@@ -14,7 +14,7 @@ pipeline {
         string(name: 'NEW_BRANCH_NAME', defaultValue: "", description: "Only used if RELEASE. Name for new branch to push commit to for release PR. If empty, will use PROJECT_VERSION as branch name.")
     }
     environment {
-        KOGITO_CI_EMAIL_TO = credentials("KOGITO_CI_EMAIL_TO")
+        /* KOGITO_CI_EMAIL_TO = credentials("KOGITO_CI_EMAIL_TO") */
         PIPELINE_NAME = "Test (kmok) - Kogito Runtimes deploy pipeline"
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
         COMMIT_MSG = "Update project version to ${params.PROJECT_VERSION}"
@@ -189,8 +189,9 @@ pipeline {
             }
             steps {
                 script {
+                    echo "${env.PIPELINE_NAME} #${env.BUILD_NUMBER} needs a staging repository URL: ${env.BUILD_URL}input"
                     deployProperties["staging-repo.url"] = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
-                    emailext body: "${env.PIPELINE_NAME} #${env.BUILD_NUMBER} needs a staging repository URL: ${env.BUILD_URL}/input",
+                    emailext body: "${env.PIPELINE_NAME} #${env.BUILD_NUMBER} needs a staging repository URL: ${env.BUILD_URL}input",
                              subject: "${env.PIPELINE_NAME} #${env.BRANCH_NAME}",
                              to: env.KOGITO_CI_EMAIL_TO
                 }
