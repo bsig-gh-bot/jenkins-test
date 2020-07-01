@@ -1,7 +1,6 @@
 @Library('jenkins-pipeline-shared-libraries-kmok')_
 
 pipeline {
-    agent any
     environment {
         NEW_BRANCH = "${JOB_BASE_NAME}-${BUILD_NUMBER}"
     }
@@ -10,10 +9,12 @@ pipeline {
             steps {
                 dir("github-release-test") {
                     script {
+                        cleanWs()
+                        sh "rm -rf ~/.config/hub"
                         checkout(githubscm.resolveRepository("jenkins-test", "Kevin-Mok", "master", false))
                         /* def branch = "2415-8" */
                         /* githubscm.createBranch(NEW_BRANCH) */
-                        githubscm.forkRepo( "Kevin-Mok-Bot")
+                        githubscm.forkRepo("kmok-github-bot")
                         sh "git status"
                         /* sh "git checkout ${branch}"
                         sh "printf \"${BUILD_TAG}\n\" >> README.md"
