@@ -1,0 +1,22 @@
+@Library('jenkins-pipeline-shared-libraries-kmok')_
+
+pipeline {
+    agent { label 'kie-rhel7-priority' }
+    stages {
+        stage('Clone repositories') { 
+            steps {
+                dir("github-release-test") {
+                    script {
+                        sh '''
+                        git init
+                        mkdir -p a/b
+                        touch a/b/c
+                        git add **/c
+                        git status
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}
