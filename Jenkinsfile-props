@@ -25,10 +25,7 @@ pipeline {
         always {
             script {
                 if (params.RELEASE) {
-                    def bar = ""
-                    for(e in foo) {
-                        bar = "${bar}${e.key}=${e.value}\n"
-                    }
+                    bar = foo.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
                     echo bar
                     writeFile(text: bar, file: PROPERTIES_FILE)
                     /* sh "printf b >> ${PROPERTIES_FILE}" */
