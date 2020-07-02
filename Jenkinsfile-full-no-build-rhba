@@ -1,25 +1,25 @@
-@Library('jenkins-pipeline-shared-libraries-kmok')_
+@Library('jenkins-pipeline-shared-libraries')_
 
 def deployProperties = [:]
 
 pipeline {
-    agent {label 'kogito-cloud && !master'}
+    agent { label 'kie-rhel7-priority' }
     parameters {
         string(name: 'DISPLAY_NAME', defaultValue: '', description: 'Setup a specific build display name')
-        string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Which branch to build ? Set if you are not on a multibranch pipeline.')
+        string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Which branch to build? Set if you are not on a multibranch pipeline.')
         booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
-        string(name: 'PROJECT_VERSION', defaultValue: '', description: 'Optional.')
-        string(name: 'GIT_USER', defaultValue: "Jenkins CI", description: "Only used if RELEASE. Git user name to use for commit for updating project version.")
-        string(name: 'GIT_USER_EMAIL', defaultValue: "jenkins@rhba-jenkins.rhev-ci-vms.eng.rdu2.redhat.com", description: "Only used if RELEASE. Git user email to use for commit for updating project version.")
-        string(name: 'NEW_BRANCH_NAME', defaultValue: "", description: "Only used if RELEASE. Name for new branch to push commit to for release PR. If empty, will use PROJECT_VERSION as branch name.")
+        string(name: 'PROJECT_VERSION', defaultValue: '', description: 'Optional if not RELEASE. If RELEASE, cannot be empty.')
     }
     environment {
-        /* KOGITO_CI_EMAIL_TO = credentials("KOGITO_CI_EMAIL_TO") */
+        KOGITO_CI_EMAIL_TO = credentials("KOGITO_CI_EMAIL_TO")
         PIPELINE_NAME = "Test (kmok) - Kogito Runtimes deploy pipeline"
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
-        COMMIT_MSG = "Update project version to ${params.PROJECT_VERSION}"
         PROPERTIES_FILE = "deployment.properties"
-        CREDENTIALS_ID = "kmok-github-bot"
+        FILES_TO_ADD = 'README.md'
+        COMMIT_MSG = "Add build tag to README"
+        BOT_CREDENTIALS_ID = "kmok-github-bot"
+        GIT_COMMITTER_NAME = "Jenkins"
+        GIT_COMMITTER_EMAIL = "jenkins@rhba.com"
     }
     tools {
         maven 'kie-maven-3.6.2'
@@ -33,21 +33,21 @@ pipeline {
         stage("Initialize") {
             steps {
                 script {
+                    cleanWs()
                     if (params.DISPLAY_NAME != "") {
                         currentBuild.displayName = params.DISPLAY_NAME
                     }
+
                     if (env.BRANCH_NAME != "") {
                         // Switch to branch if not on a multibranch pipeline
                         env.BRANCH_NAME = params.BUILD_BRANCH_NAME
                     }
-                    deployProperties['release'] = params.RELEASE
-                    deployProperties['project-version'] = params.PROJECT_VERSION
-                    env.NEW_BRANCH = params.NEW_BRANCH_NAME
                     if (params.RELEASE) {
                         assert params.PROJECT_VERSION != ''
-                        if (env.NEW_BRANCH == "") {
-                            env.NEW_BRANCH = params.PROJECT_VERSION
-                        }
+                    }
+                    deployProperties['release'] = params.RELEASE
+                    if (params.PROJECT_VERSION != '') {
+                        deployProperties['project-version'] = params.PROJECT_VERSION
                     }
                 }
             }
@@ -55,18 +55,7 @@ pipeline {
         stage('Clone repositories') { 
             steps {
                 dir("kogito-runtimes") {
-                    checkout(githubscm.resolveRepository("test-repo-1", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
-                }
-                dir("kogito-apps") {
-                    checkout(githubscm.resolveRepository("test-repo-2", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
-                }
-                dir("kogito-examples") {
-                    checkout(githubscm.resolveRepository("test-repo-3", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
-                }
-                // Use a separate dir for persistence to not overwrite the test results
-                /* sh "cp -r kogito-examples kogito-examples-persistence" */
-                dir("kogito-examples-persistence") {
-                    checkout(githubscm.resolveRepository("test-repo-3", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("jenkins-test", "Kevin-Mok", env.BRANCH_NAME, false))
                 }
             }
         }
@@ -76,7 +65,7 @@ pipeline {
             }
             steps {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
-                    sh "echo '-B -s ${MAVEN_SETTINGS_FILE}' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
+                    sh "echo '-B -s ${MAVEN_SETTINGS_FILE}' | tee kogito-runtimes/README.md"
                 }
             }
         }
@@ -88,25 +77,8 @@ pipeline {
                 dir("kogito-runtimes") {
                     script {
                         /* maven.updateMavenVersion(params.PROJECT_VERSION) */
-                        sh "echo ${COMMIT_MSG} >> pom.xml"
-                    }
-                }
-                dir("kogito-apps") {
-                    script {
-                        /* maven.updateMavenVersion(params.PROJECT_VERSION) */
-                        sh "echo ${COMMIT_MSG} >> pom.xml"
-                    }
-                }
-                dir("kogito-examples") {
-                    script {
-                        /* maven.updateMavenVersion(params.PROJECT_VERSION) */
-                        sh "echo ${COMMIT_MSG} >> pom.xml"
-                    }
-                }
-                dir("kogito-examples-persistence") {
-                    script {
-                        /* maven.updateMavenVersion(params.PROJECT_VERSION) */
-                        sh "echo ${COMMIT_MSG} >> pom.xml"
+                        sh "printf \"${BUILD_TAG}\n\" >> README.md"
+                        
                     }
                 }
             }
@@ -115,39 +87,7 @@ pipeline {
             steps {
                 dir("kogito-runtimes") {
                     script {
-                        /* maven.runMavenWithSubmarineSettings('clean install', false) */
                         echo "Build kogito-runtimes"
-                    }
-                }
-            }
-        }
-        stage('Build kogito-apps') {
-            steps {
-                dir("kogito-apps") {
-                    script {
-                        /* maven.runMavenWithSubmarineSettings('clean install', false) */
-                        echo "Build kogito-apps"
-                    }
-                }
-            }
-        }
-        stage('Build kogito-examples') {
-            steps {
-                dir("kogito-examples") {
-                    script {
-                        /* maven.runMavenWithSubmarineSettings('clean install', false) */
-                        echo "Build kogito-examples"
-                    }
-                }
-            }
-        }
-        stage('Build kogito-examples with persistence') {
-            steps {
-                dir("kogito-examples-persistence") {
-                    script {
-                        // Don't run with tests so far, see: https://github.com/quarkusio/quarkus/issues/6885
-                        /* maven.runMavenWithSubmarineSettings('clean install -Ppersistence', true) */
-                        echo "Build kogito-examples-persistence"
                     }
                 }
             }
@@ -159,26 +99,11 @@ pipeline {
             steps {
                 dir("kogito-runtimes") {
                     script {
-                        githubscm.createBranch(env.NEW_BRANCH)
-                        githubscm.commitChanges(params.GIT_USER, params.GIT_USER_EMAIL, env.COMMIT_MSG, "pom.xml")
-                        githubscm.pushObject("origin", env.NEW_BRANCH, CREDENTIALS_ID)
-                        deployProperties["kogito-runtimes.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", CREDENTIALS_ID)
-                    }
-                }
-                dir("kogito-apps") {
-                    script {
-                        githubscm.createBranch(env.NEW_BRANCH)
-                        githubscm.commitChanges(params.GIT_USER, params.GIT_USER_EMAIL, env.COMMIT_MSG, "pom.xml")
-                        githubscm.pushObject("origin", env.NEW_BRANCH, CREDENTIALS_ID)
-                        deployProperties["kogito-apps.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", CREDENTIALS_ID)
-                    }
-                }
-                dir("kogito-examples") {
-                    script {
-                        githubscm.createBranch(env.NEW_BRANCH)
-                        githubscm.commitChanges(params.GIT_USER, params.GIT_USER_EMAIL, env.COMMIT_MSG, "pom.xml")
-                        githubscm.pushObject("origin", env.NEW_BRANCH, CREDENTIALS_ID)
-                        deployProperties["kogito-examples.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", CREDENTIALS_ID)
+                        githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
+                        githubscm.createBranch(params.PROJECT_VERSION)
+                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG, 'README.md')
+                        githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
+                        deployProperties["kogito-runtimes.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
                     }
                 }
             }
@@ -189,11 +114,7 @@ pipeline {
             }
             steps {
                 script {
-                    echo "${env.PIPELINE_NAME} #${env.BUILD_NUMBER} needs a staging repository URL: ${env.BUILD_URL}input"
                     deployProperties["staging-repo.url"] = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
-                    emailext body: "${env.PIPELINE_NAME} #${env.BUILD_NUMBER} needs a staging repository URL: ${env.BUILD_URL}input",
-                             subject: "${env.PIPELINE_NAME} #${env.BRANCH_NAME}",
-                             to: env.KOGITO_CI_EMAIL_TO
                 }
             }
         }
@@ -201,10 +122,7 @@ pipeline {
     post {
         always {
             script {
-                def propertiesStr = ""
-                for(entry in deployProperties) {
-                    propertiesStr = "${propertiesStr}${entry.key}=${entry.value}\n"
-                }
+                def propertiesStr = deployProperties.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
                 writeFile(text: propertiesStr, file: env.PROPERTIES_FILE)
                 archiveArtifacts(artifacts: env.PROPERTIES_FILE)
             }
