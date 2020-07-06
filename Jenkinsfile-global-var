@@ -1,0 +1,17 @@
+def deployProperties = [:]
+
+pipeline {
+    agent { label 'kie-rhel7-priority' }
+    stages {
+        stage("Initialize") {
+            steps {
+                script {
+                    setDeployProperty()
+                }
+            }
+        }
+}
+
+void setDeployProperty(){
+    deployProperties['foo'] = 'bar'
+}
