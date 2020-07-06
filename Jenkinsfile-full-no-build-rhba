@@ -36,9 +36,13 @@ pipeline {
                     if (params.RELEASE) {
                         assert params.PROJECT_VERSION != ''
                     }
-                    setDeployPropertyIfNeeded('git.branch', params.BUILD_BRANCH_NAME)
-                    setDeployPropertyIfNeeded('project.version', params.PROJECT_VERSION)
-                    setDeployPropertyIfNeeded('release', params.RELEASE)
+                    if (params.BUILD_BRANCH_NAME != '') {
+                        deployProperties['git.branch'] = params.BUILD_BRANCH_NAME
+                    }
+                    deployProperties['release'] = params.RELEASE
+                    if (params.PROJECT_VERSION != '') {
+                        deployProperties['project-version'] = params.PROJECT_VERSION
+                    }
                 }
             }
         }
@@ -117,10 +121,4 @@ void commitAndCreatePR(String repo) {
     sh "git commit -m '${commitMsg}'"
     githubscm.pushObject("origin", params.PROJECT_VERSION, botCredsID)
     deployProperties["${repo}.pr.link"] = githubscm.createPR(commitMsg, "master", botCredsID)
-}
-
-void setDeployPropertyIfNeeded(String key, def value){
-    if (value != null && value != ""){
-        deployProperties[key] = value
-    }
 }
