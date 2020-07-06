@@ -14,7 +14,8 @@ pipeline {
                     script {
                         cleanWs()
                         sh "rm -rf ~/.config/hub"
-                        checkout(githubscm.resolveRepository("jenkins-test", "Kevin-Mok", "master", false))
+                        /* checkout(githubscm.resolveRepository("jenkins-test", "Kevin-Mok", "master", false)) */
+                        checkout(githubscm.resolveRepository("kogito-runtimes", "kiegroup", "master", false))
                         githubscm.forkRepo("kmok-github-bot")
                         /* githubscm.createBranch(NEW_BRANCH)
                         sh '''
