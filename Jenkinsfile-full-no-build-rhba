@@ -49,7 +49,7 @@ pipeline {
         stage('Clone repositories') { 
             steps {
                 dir("kogito-runtimes") {
-                    checkout(githubscm.resolveRepository("jenkins-test", "Kevin-Mok", "master", false))
+                    checkout(githubscm.resolveRepository("kogito-runtimes", "Kevin-Mok", "master", false))
                 }
             }
         }
@@ -59,7 +59,21 @@ pipeline {
             }
             steps {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
-                    sh "echo '-B -s ${MAVEN_SETTINGS_FILE}' | tee kogito-runtimes/README.md"
+                    sh "echo '-B -s ${MAVEN_SETTINGS_FILE}' | tee kogito-runtimes/.mvn/maven.config"
+                    sh "git status"
+                }
+            }
+        }
+        stage('Update project version'){
+            when {
+                expression { return params.PROJECT_VERSION != '' }
+            }
+            steps {
+                dir("kogito-examples") {
+                    script {
+                        maven.mvnVersionsSet(params.PROJECT_VERSION)
+                        sh "git status"
+                    }
                 }
             }
         }
@@ -117,7 +131,7 @@ void commitAndCreatePR(String repo) {
     // See: https://github.com/kiegroup/kogito-runtimes/pull/570#discussion_r449268738
     sh "git config user.name '${env.GIT_COMMITTER_NAME}'"
     sh "git config user.email '${env.GIT_COMMITTER_EMAIL}'"
-    sh "git add **/pom.xml"
+    sh "git add $(find . -type f -name 'pom.xml')"
     sh "git commit -m '${commitMsg}'"
     githubscm.pushObject("origin", params.PROJECT_VERSION, botCredsID)
     deployProperties["${repo}.pr.link"] = githubscm.createPR(commitMsg, "master", botCredsID)
