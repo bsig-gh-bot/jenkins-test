@@ -19,7 +19,7 @@ pipeline {
         COMMIT_MSG = "Update project version to ${params.PROJECT_VERSION} for release"
         // TODO: to be replaced with bot account used to create PR's
         /* BOT_CREDENTIALS_ID = "kie-ci-bot" */
-        BOT_CREDENTIALS_ID = "Kevin-Mok-Bot"
+        BOT_CREDENTIALS_ID = "kmok-github-bot"
     }
     tools {
         maven 'kie-maven-3.6.2'
@@ -153,7 +153,7 @@ pipeline {
                     script {
                         githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
                         githubscm.createBranch(params.PROJECT_VERSION)
-                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG, env.FILES_TO_ADD)
+                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG)
                         githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
                         deployProperties["kogito-runtimes.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
                     }
@@ -162,7 +162,7 @@ pipeline {
                     script {
                         githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
                         githubscm.createBranch(params.PROJECT_VERSION)
-                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG, env.FILES_TO_ADD)
+                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG)
                         githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
                         deployProperties["kogito-apps.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
                     }
@@ -171,7 +171,7 @@ pipeline {
                     script {
                         githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
                         githubscm.createBranch(params.PROJECT_VERSION)
-                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG, env.FILES_TO_ADD)
+                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG)
                         githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
                         deployProperties["kogito-examples.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
                     }
