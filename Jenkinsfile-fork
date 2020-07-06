@@ -1,4 +1,4 @@
-@Library('jenkins-pipeline-shared-libraries-kmok')_
+@Library('jenkins-pipeline-shared-libraries')_
 
 pipeline {
     agent { label 'kie-rhel7-priority' }
@@ -16,7 +16,7 @@ pipeline {
                         sh "rm -rf ~/.config/hub"
                         checkout(githubscm.resolveRepository("jenkins-test", "Kevin-Mok", "master", false))
                         githubscm.forkRepo("kmok-github-bot")
-                        githubscm.createBranch(NEW_BRANCH)
+                        /* githubscm.createBranch(NEW_BRANCH)
                         sh '''
                         git status
                         ls -a
@@ -26,7 +26,7 @@ pipeline {
                         githubscm.commitChanges("Jenkins", "nzxt@jenkins.com", COMMIT_MSG)
                         githubscm.pushObject("origin", NEW_BRANCH, CREDS_ID)
                         sh "git status"
-                        echo githubscm.createPR(COMMIT_MSG, "master", CREDS_ID)
+                        echo githubscm.createPR(COMMIT_MSG, "master", CREDS_ID) */
                     }
                 }
             }
