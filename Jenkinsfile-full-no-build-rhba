@@ -108,7 +108,7 @@ pipeline {
                 }
             }
         }
-        stage('Archive staging repository URL') {
+        stage('Get staging repository URL') {
             when {
                 expression { return params.RELEASE }
             }
