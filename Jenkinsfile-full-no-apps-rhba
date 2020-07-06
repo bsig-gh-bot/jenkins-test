@@ -1,0 +1,172 @@
+@Library('jenkins-pipeline-shared-libraries')_
+
+def deployProperties = [:]
+
+pipeline {
+    agent {label 'kogito-cloud && !master'}
+    parameters {
+        string(name: 'DISPLAY_NAME', defaultValue: '', description: 'Setup a specific build display name')
+        string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Which branch to build? Set if you are not on a multibranch pipeline.')
+        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
+        string(name: 'PROJECT_VERSION', defaultValue: '', description: 'Optional if not RELEASE. If RELEASE, cannot be empty.')
+    }
+    environment {
+        KOGITO_CI_EMAIL_TO = credentials("KOGITO_CI_EMAIL_TO")
+        PIPELINE_NAME = "Kogito Runtimes deploy pipeline"
+        MAVEN_OPTS = '-Xms1024m -Xmx4g'
+        PROPERTIES_FILE = "deployment.properties"
+        FILES_TO_ADD = '**/pom.xml'
+        COMMIT_MSG = "Update project version to ${params.PROJECT_VERSION} for release"
+        // TODO: to be replaced with bot account used to create PR's
+        /* BOT_CREDENTIALS_ID = "kie-ci-bot" */
+        BOT_CREDENTIALS_ID = "Kevin-Mok-Bot"
+    }
+    tools {
+        maven 'kie-maven-3.6.2'
+        jdk 'kie-jdk11'
+    }
+    options {
+        buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '5')
+        timeout(time: 120, unit: 'MINUTES')
+    }
+    stages {
+        stage("Initialize") {
+            steps {
+                script {
+                    if (params.DISPLAY_NAME != "") {
+                        currentBuild.displayName = params.DISPLAY_NAME
+                    }
+
+                    if (env.BRANCH_NAME != "") {
+                        // Switch to branch if not on a multibranch pipeline
+                        env.BRANCH_NAME = params.BUILD_BRANCH_NAME
+                    }
+                    if (params.RELEASE) {
+                        assert params.PROJECT_VERSION != ''
+                    }
+                    deployProperties['release'] = params.RELEASE
+                    if (params.PROJECT_VERSION != '') {
+                        deployProperties['project-version'] = params.PROJECT_VERSION
+                    }
+                }
+            }
+        }
+        stage('Clone repositories') { 
+            steps {
+                dir("kogito-runtimes") {
+                    checkout(githubscm.resolveRepository("kogito-runtimes", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
+                }
+                dir("kogito-examples") {
+                    checkout(githubscm.resolveRepository("kogito-examples", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
+                }
+            }
+        }
+        stage('Setup Maven release config'){
+            when {
+                expression { return params.RELEASE }
+            }
+            steps {
+                configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
+                    sh "echo '-B -s ${MAVEN_SETTINGS_FILE}' | tee kogito-{runtimes,apps,examples}/.mvn/maven.config"
+                }
+            }
+        }
+        stage('Update project version'){
+            when {
+                expression { return params.PROJECT_VERSION != '' }
+            }
+            steps {
+                dir("kogito-runtimes") {
+                    script {
+                        maven.mvnVersionsSet(params.PROJECT_VERSION)
+                        sh "git status"
+                    }
+                }
+                dir("kogito-examples") {
+                    script {
+                        maven.mvnVersionsSet(params.PROJECT_VERSION)
+                        sh "git status"
+                    }
+                }
+            }
+        }
+        stage('Build kogito-runtimes') {
+            steps {
+                dir("kogito-runtimes") {
+                    script {
+                        maven.runMavenWithSubmarineSettings('clean install', false)
+                        sh "git status"
+                    }
+                }
+            }
+            post {
+                always {
+                    saveReports()
+                }
+            }
+        }
+        stage('Build kogito-examples') {
+            steps {
+                dir("kogito-examples") {
+                    script {
+                        maven.runMavenWithSubmarineSettings('clean install', false)
+                        sh "git status"
+                    }
+                }
+            }
+            post {
+                always {
+                    saveReports()
+                }
+            }
+        }
+        stage('Create PR'){
+            when {
+                expression { return params.RELEASE }
+            }
+            steps {
+                dir("kogito-runtimes") {
+                    script {
+                        githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
+                        githubscm.createBranch(params.PROJECT_VERSION)
+                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG, env.FILES_TO_ADD)
+                        githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
+                        deployProperties["kogito-runtimes.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
+                    }
+                }
+                dir("kogito-examples") {
+                    script {
+                        githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
+                        githubscm.createBranch(params.PROJECT_VERSION)
+                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG, env.FILES_TO_ADD)
+                        githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
+                        deployProperties["kogito-examples.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
+                    }
+                }
+            }
+        }
+        stage('Get staging repository URL') {
+            when {
+                expression { return params.RELEASE }
+            }
+            steps {
+                script {
+                    deployProperties["staging-repo.url"] = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                def propertiesStr = deployProperties.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
+                writeFile(text: propertiesStr, file: env.PROPERTIES_FILE)
+                archiveArtifacts(artifacts: env.PROPERTIES_FILE)
+            }
+        }
+    }
+}
+
+void saveReports(boolean allowEmpty=false){
+    junit testResults: '**/target/surefire-reports/**/*.xml, **/target/failsafe-reports/**/*.xml', allowEmptyResults: allowEmpty
+}
