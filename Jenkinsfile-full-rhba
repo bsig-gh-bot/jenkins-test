@@ -87,7 +87,7 @@ pipeline {
                 }
                 dir("kogito-apps") {
                     script {
-                        maven.mvnVersionsSet(params.PROJECT_VERSION)
+                        maven.mvnVersionsUpdateParentAndChildModules(params.PROJECT_VERSION)
                         sh "git status"
                     }
                 }
