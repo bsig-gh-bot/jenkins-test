@@ -1,0 +1,26 @@
+pipeline {
+    agent { label 'kie-rhel7-priority' }
+    stages {
+        stage('Clone repositories') { 
+            steps {
+                dir("github-release-test") {
+                    script {
+                        cleanWs()
+                        sh '''
+                        git init
+                        mkdir -p a/b d/e f g
+                        touch a/b/c.md d/e/c.xml f/c.md g/c.xml c.md c.xml 
+                        echo g/c.xml > .gitignore
+                        files=""
+                        for f in \$(find . -type f -name 'c.xml'); do
+                            if ! \$(git check-ignore -q \$f); then files="\$files \$f"; fi
+                        done
+                        git add \$files
+                        git status
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}
