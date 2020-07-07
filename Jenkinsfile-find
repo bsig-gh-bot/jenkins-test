@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'kie-rhel7-priority' }
+    agent any
     stages {
         stage('Clone repositories') { 
             steps {
@@ -11,16 +11,27 @@ pipeline {
                         mkdir -p a/b d/e f g
                         touch a/b/c.md d/e/c.xml f/c.md g/c.xml c.md c.xml 
                         echo g/c.xml > .gitignore
-                        files=""
-                        for f in \$(find . -type f -name 'c.xml'); do
-                            if ! \$(git check-ignore -q \$f); then files="\$files \$f"; fi
-                        done
-                        git add \$files
-                        git status
                         '''
+                        addNotIgnoredPoms()
+                        sh "git status"
                     }
                 }
             }
         }
     }
+}
+
+void addNotIgnoredPoms() {
+    // based on https://stackoverflow.com/a/59888964/8811872
+    sh '''
+    find . -type f -name 'c.xml' > found_poms.txt
+    poms_to_add=""
+    while IFS= read -r pom; do
+        if ! git check-ignore -q "\$pom"; then
+            poms_to_add="\$poms_to_add \$pom"
+        fi
+    done < found_poms.txt
+    rm found_poms.txt
+    git add \$poms_to_add
+    '''
 }
