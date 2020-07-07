@@ -26,6 +26,7 @@ pipeline {
         stage("Initialize") {
             steps {
                 script {
+                    cleanWs()
                     if (params.DISPLAY_NAME != "") {
                         currentBuild.displayName = params.DISPLAY_NAME
                     }
@@ -46,7 +47,7 @@ pipeline {
         stage('Clone repositories') { 
             steps {
                 dir("kogito-runtimes") {
-                    checkout(githubscm.resolveRepository("kogito-runtimes", "kiegroup", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("kogito-runtimes", "Kevin-Mok", env.BRANCH_NAME, false))
                 }
             }
         }
@@ -101,9 +102,11 @@ pipeline {
             steps {
                 script {
                     def pipelineName = "Test (kmok) - Kogito Runtimes deploy pipeline"
-                    emailext body: "${pipelineName} #${env.BUILD_NUMBER} is ready for release and needs a staging repository URL: ${env.BUILD_URL}input",
-                             subject: "${pipelineName} #${getBuildBranch()}",
-                             to: credentials("KOGITO_CI_EMAIL_TO")
+                    /* withCredentials([string(credentialsId: "KOGITO_CI_EMAIL_TO", variable: 'ZULIP_EMAIL')]) {
+                        emailext body: "${pipelineName} #${env.BUILD_NUMBER} is ready for release and needs a staging repository URL: ${env.BUILD_URL}input",
+                                 subject: "${pipelineName} #${getBuildBranch()}",
+                                 to: ZULIP_EMAIL
+                    } */
                     deployProperties["staging-repo.url"] = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
                 }
             }
