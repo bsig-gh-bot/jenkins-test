@@ -1,9 +1,10 @@
 @Library('jenkins-pipeline-shared-libraries')_
 
-def deployProperties = [:]
+deployProperties = [:]
+BOT_CREDENTIALS_ID = "kmok-github-bot"
 
 pipeline {
-    agent {label 'kogito-cloud && !master'}
+    agent { label 'kie-rhel7-priority' }
     parameters {
         string(name: 'DISPLAY_NAME', defaultValue: '', description: 'Setup a specific build display name')
         string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Which branch to build? Set if you are not on a multibranch pipeline.')
@@ -11,15 +12,7 @@ pipeline {
         string(name: 'PROJECT_VERSION', defaultValue: '', description: 'Optional if not RELEASE. If RELEASE, cannot be empty.')
     }
     environment {
-        KOGITO_CI_EMAIL_TO = credentials("KOGITO_CI_EMAIL_TO")
-        PIPELINE_NAME = "Kogito Runtimes deploy pipeline"
         MAVEN_OPTS = '-Xms1024m -Xmx4g'
-        PROPERTIES_FILE = "deployment.properties"
-        FILES_TO_ADD = '**/pom.xml'
-        COMMIT_MSG = "Update project version to ${params.PROJECT_VERSION} for release"
-        // TODO: to be replaced with bot account used to create PR's
-        /* BOT_CREDENTIALS_ID = "kie-ci-bot" */
-        BOT_CREDENTIALS_ID = "kmok-github-bot"
     }
     tools {
         maven 'kie-maven-3.6.2'
@@ -39,62 +32,83 @@ pipeline {
 
                     if (env.BRANCH_NAME != "") {
                         // Switch to branch if not on a multibranch pipeline
-                        env.BRANCH_NAME = params.BUILD_BRANCH_NAME
+                        env.BRANCH_NAME = getBuildBranch()
                     }
-                    if (params.RELEASE) {
-                        assert params.PROJECT_VERSION != ''
+                    if (isRelease()) {
+                        assert getProjectVersion() != ''
                     }
-                    deployProperties['release'] = params.RELEASE
-                    if (params.PROJECT_VERSION != '') {
-                        deployProperties['project-version'] = params.PROJECT_VERSION
-                    }
+                    setDeployPropertyIfNeeded('git.branch', getBuildBranch())
+                    setDeployPropertyIfNeeded('project.version', getProjectVersion())
+                    setDeployPropertyIfNeeded('release', isRelease())
                 }
             }
         }
         stage('Clone repositories') { 
             steps {
                 dir("kogito-runtimes") {
-                    checkout(githubscm.resolveRepository("kogito-runtimes", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("kogito-runtimes", "Kevin-Mok", env.BRANCH_NAME, false))
                 }
                 dir("kogito-apps") {
-                    checkout(githubscm.resolveRepository("kogito-apps", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("kogito-apps", "Kevin-Mok", env.BRANCH_NAME, false))
                 }
                 dir("kogito-examples") {
-                    checkout(githubscm.resolveRepository("kogito-examples", "Kevin-Mok-Bot", env.BRANCH_NAME, false))
+                    checkout(githubscm.resolveRepository("kogito-examples", "Kevin-Mok", env.BRANCH_NAME, false))
+                }
+                // Use a separate dir for persistence to not overwrite the test results
+                dir("kogito-examples-persistence") {
+                    checkout(githubscm.resolveRepository("kogito-examples", "Kevin-Mok", env.BRANCH_NAME, false))
+                }
+            }
+        }
+        stage('Prepare for PR'){
+            when {
+                expression { return isRelease() }
+            }
+            steps {
+                dir("kogito-runtimes") {
+                    prepareForPR()
+                }
+                dir("kogito-apps") {
+                    prepareForPR()
+                }
+                dir("kogito-examples") {
+                    prepareForPR()
                 }
             }
         }
         stage('Setup Maven release config'){
             when {
-                expression { return params.RELEASE }
+                expression { return isRelease() }
             }
             steps {
                 configFileProvider([configFile(fileId: '771ff52a-a8b4-40e6-9b22-d54c7314aa1e', targetLocation: 'maven-settings.xml', variable: 'MAVEN_SETTINGS_FILE')]){
-                    sh "echo '-B -s ${MAVEN_SETTINGS_FILE}' | tee kogito-{runtimes,apps,examples}/.mvn/maven.config"
+                    sh "echo '-B -s ${MAVEN_SETTINGS_FILE}' | tee kogito-{runtimes,apps,examples,examples-persistence}/.mvn/maven.config"
                 }
             }
         }
         stage('Update project version'){
             when {
-                expression { return params.PROJECT_VERSION != '' }
+                expression { return getProjectVersion() != '' }
             }
             steps {
                 dir("kogito-runtimes") {
                     script {
-                        maven.mvnVersionsSet(params.PROJECT_VERSION)
-                        sh "git status"
+                        maven.mvnVersionsSet(getProjectVersion())
                     }
                 }
                 dir("kogito-apps") {
                     script {
-                        maven.mvnVersionsUpdateParentAndChildModules(params.PROJECT_VERSION)
-                        sh "git status"
+                        maven.mvnVersionsUpdateParentAndChildModules(getProjectVersion())
                     }
                 }
                 dir("kogito-examples") {
                     script {
-                        maven.mvnVersionsSet(params.PROJECT_VERSION)
-                        sh "git status"
+                        maven.mvnVersionsSet(getProjectVersion())
+                    }
+                }
+                dir("kogito-examples-persistence") {
+                    script {
+                        maven.mvnVersionsSet(getProjectVersion())
                     }
                 }
             }
@@ -104,7 +118,6 @@ pipeline {
                 dir("kogito-runtimes") {
                     script {
                         maven.runMavenWithSubmarineSettings('clean install', false)
-                        sh "git status"
                     }
                 }
             }
@@ -119,7 +132,6 @@ pipeline {
                 dir("kogito-apps") {
                     script {
                         maven.runMavenWithSubmarineSettings('clean install', false)
-                        sh "git status"
                     }
                 }
             }
@@ -134,7 +146,6 @@ pipeline {
                 dir("kogito-examples") {
                     script {
                         maven.runMavenWithSubmarineSettings('clean install', false)
-                        sh "git status"
                     }
                 }
             }
@@ -144,46 +155,52 @@ pipeline {
                 }
             }
         }
+        stage('Build kogito-examples with persistence') {
+            steps {
+                dir("kogito-examples-persistence") {
+                    script {
+                        // Don't run with tests so far, see: https://github.com/quarkusio/quarkus/issues/6885
+                        maven.runMavenWithSubmarineSettings('clean install -Ppersistence', true)
+                    }
+                }
+            }
+            post {
+                always {
+                    saveReports(true)
+                }
+            }
+        }
         stage('Create PR'){
             when {
-                expression { return params.RELEASE }
+                expression { return isRelease() }
             }
             steps {
                 dir("kogito-runtimes") {
                     script {
-                        githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
-                        githubscm.createBranch(params.PROJECT_VERSION)
-                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG)
-                        githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
-                        deployProperties["kogito-runtimes.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
+                        commitAndCreatePR("kogito-runtimes")
                     }
                 }
                 dir("kogito-apps") {
                     script {
-                        githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
-                        githubscm.createBranch(params.PROJECT_VERSION)
-                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG)
-                        githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
-                        deployProperties["kogito-apps.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
+                        commitAndCreatePR("kogito-apps")
                     }
                 }
                 dir("kogito-examples") {
                     script {
-                        githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
-                        githubscm.createBranch(params.PROJECT_VERSION)
-                        githubscm.commitChanges(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, env.COMMIT_MSG)
-                        githubscm.pushObject("origin", params.PROJECT_VERSION, env.BOT_CREDENTIALS_ID)
-                        deployProperties["kogito-examples.pr.link"] = githubscm.createPR(env.COMMIT_MSG, "master", env.BOT_CREDENTIALS_ID)
+                        commitAndCreatePR("kogito-examples")
                     }
                 }
             }
         }
         stage('Get staging repository URL') {
             when {
-                expression { return params.RELEASE }
+                expression { return isRelease() }
             }
             steps {
                 script {
+                    def pipelineName = "Kogito Runtimes deploy pipeline"
+                    echo "${pipelineName} #${env.BUILD_NUMBER} is ready for release and needs a staging repository URL: ${env.BUILD_URL}input"
+                    echo "${pipelineName} #${getBuildBranch()}"
                     deployProperties["staging-repo.url"] = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')])
                 }
             }
@@ -193,9 +210,10 @@ pipeline {
         always {
             script {
                 def propertiesStr = deployProperties.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
-                writeFile(text: propertiesStr, file: env.PROPERTIES_FILE)
-                archiveArtifacts(artifacts: env.PROPERTIES_FILE)
+                writeFile(text: propertiesStr, file: "deployment.properties")
+                archiveArtifacts(artifacts: "deployment.properties")
             }
+            cleanWs()
         }
     }
 }
@@ -203,3 +221,40 @@ pipeline {
 void saveReports(boolean allowEmpty=false){
     junit testResults: '**/target/surefire-reports/**/*.xml, **/target/failsafe-reports/**/*.xml', allowEmptyResults: allowEmpty
 }
+
+void prepareForPR() {
+    githubscm.forkRepo(BOT_CREDENTIALS_ID)
+    githubscm.createBranch(getProjectVersion())
+}
+
+void commitAndCreatePR(String repo) {
+    def commitMsg = "Update project version to ${getProjectVersion()} for release"
+
+    // Not using githubscm.commitChanges() because globbing won't work.
+    // See: https://github.com/kiegroup/kogito-runtimes/pull/570#discussion_r449268738
+    sh "git config user.name '${env.GIT_COMMITTER_NAME}'"
+    sh "git config user.email '${env.GIT_COMMITTER_EMAIL}'"
+    sh "git add \$(find . -type f -name 'pom.xml')"
+    sh "git commit -m '${commitMsg}'"
+    githubscm.pushObject("origin", getProjectVersion(), BOT_CREDENTIALS_ID)
+    deployProperties["${repo}.pr.link"] = githubscm.createPR(commitMsg, "master", BOT_CREDENTIALS_ID)
+}
+
+boolean isRelease() {
+    return params.RELEASE
+}
+
+String getBuildBranch(){
+    return params.BUILD_BRANCH_NAME
+}
+
+String getProjectVersion(){
+    return params.PROJECT_VERSION
+}
+
+void setDeployPropertyIfNeeded(String key, def value){
+    if (value != null && value != ""){
+        deployProperties[key] = value
+    }
+}
+
