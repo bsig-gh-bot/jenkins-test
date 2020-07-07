@@ -1,5 +1,3 @@
-@Library('jenkins-pipeline-shared-libraries-kmok')_
-
 pipeline {
     agent { label 'kie-rhel7-priority' }
     stages {
