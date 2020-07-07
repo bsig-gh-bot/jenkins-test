@@ -1,0 +1,22 @@
+deployProperties = [:]
+BOT_CREDENTIALS_ID = "kmok-github-bot"
+
+pipeline {
+    agent { label 'kie-rhel7-priority' }
+    stages {
+        stage('Get staging repository URL') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: "KOGITO_CI_EMAIL_TO", variable: 'ZULIP_EMAIL')]) {
+                        echo ZULIP_EMAIL
+                    }
+                    /* def pipelineName = "Test (kmok) - Kogito Runtimes deploy pipeline"
+                    emailext body: "${pipelineName} #${env.BUILD_NUMBER} is ready for release and needs a staging repository URL: ${env.BUILD_URL}input",
+                             subject: "${pipelineName} #${getBuildBranch()}",
+                             to: credentials("KOGITO_CI_EMAIL_TO")
+                    deployProperties["staging-repo.url"] = input(message: "Enter staging repository URL:", parameters: [string(name: 'STAGING_REPO_URL')]) */
+                }
+            }
+        }
+    }
+}
