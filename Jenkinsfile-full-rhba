@@ -4,7 +4,7 @@ deployProperties = [:]
 BOT_CREDENTIALS_ID = "kmok-github-bot"
 
 pipeline {
-    agent { label 'kie-rhel7-priority' }
+    agent { label 'kogito-cloud && !master' }
     parameters {
         string(name: 'DISPLAY_NAME', defaultValue: '', description: 'Setup a specific build display name')
         string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Which branch to build? Set if you are not on a multibranch pipeline.')
