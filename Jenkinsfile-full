@@ -223,7 +223,6 @@ void saveReports(boolean allowEmpty=false){
 }
 
 void prepareForPR() {
-    sh "git remote remove upstream"
     githubscm.forkRepo(env.BOT_CREDENTIALS_ID)
     githubscm.createBranch(getProjectVersion())
 }
