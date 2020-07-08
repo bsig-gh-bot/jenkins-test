@@ -1,0 +1,2 @@
+    agent { label 'kie-rhel7-priority' }
+    agent { label 'kogito-cloud && !master' }
