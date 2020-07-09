@@ -1,3 +1,5 @@
+deployProperties = [:]
+
 pipeline {
     agent any
     environment {
@@ -10,8 +12,20 @@ pipeline {
     stages {
         stage('Approve promotion') {
             steps {
-                sh "wget https://pste.gq/raw/re -O ${PROPERTIES_FILE_NAME}"
-                archiveArtifacts(artifacts: PROPERTIES_FILE_NAME)
+                script {
+                    /* sh "wget https://pste.gq/raw/re -O ${PROPERTIES_FILE_NAME}" */
+                    deployProperties['git.branch'] = "master"
+                    deployProperties['project.version'] = "2.41"
+                    deployProperties['release'] = "true"
+                    deployProperties['kogito-runtimes.pr.link'] = "https://github.com/Kevin-Mok-Bot/kogito-runtimes/pull/1"
+                    deployProperties['kogito-apps.pr.link'] = "https://github.com/Kevin-Mok/kogito-apps/pull/2"
+                    deployProperties['kogito-examples.pr.link'] = "https://github.com/Kevin-Mok/kogito-examples/pull/1"
+                    deployProperties['staging-repo.url'] = "https://rhba-jenkins.rhev-ci-vms.eng.rdu2.redhat.com/job/custom/job/kmok/job/KOGITO-2415/225/input/"
+
+                    def propertiesStr = deployProperties.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
+                    writeFile(text: propertiesStr, file: "deployment.properties")
+                    archiveArtifacts(artifacts: "deployment.properties")
+                }
             }
         }
     }
