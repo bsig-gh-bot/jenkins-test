@@ -1,25 +1,17 @@
-deployProperties = [:]
-
 pipeline {
     agent any
     environment {
         PROPERTIES_FILE_NAME = "deployment.properties"
     }
     parameters {
-        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
-        string(name: 'DEPLOY_BUILD_URL', defaultValue: 'http://localhost:8090/job/2287/7/', description: 'URL to jenkins deploy build to retrieve the `deployment.properties` file. If base parameters are defined, they will override the `deployment.properties` information')
+        booleanParam(name: 'RELEASE', defaultValue: true, description: 'Is this build for a release?')
+        string(name: 'DEPLOY_PROPERTIES_URL', defaultValue: 'http://localhost:8090/job/2287/7/artifact/deployment.properties', description: 'Only needed if RELEASE. URL to archived deployment.properties file from deploy pipeline.')
     }
     stages {
         stage('Approve promotion') {
-            when {
-                expression { return params.RELEASE && params.DEPLOY_BUILD_URL != '' }
-            }
             steps {
-                script {
-                    readDeployProperties()
-                    echo deployProperties.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
-                    echo isRelease()
-                }
+                sh "wget https://pste.gq/raw/re -O ${PROPERTIES_FILE_NAME}"
+                archiveArtifacts(artifacts: PROPERTIES_FILE_NAME)
             }
         }
     }
@@ -31,11 +23,7 @@ pipeline {
 
 void readDeployProperties(){
     if (params.DEPLOY_BUILD_URL != null){
-        withCredentials([usernamePassword(credentialsId: 'kmok-jenkins', usernameVariable: 'JENKINS_USER', passwordVariable: 'JENKINS_TOKEN')]) {
-            sh "wget --auth-no-challenge --user=${JENKINS_USER} --password=${JENKINS_TOKEN} ${params.DEPLOY_BUILD_URL}artifact/${PROPERTIES_FILE_NAME}"
-        }
-        /* sh "cat ${PROPERTIES_FILE_NAME}" */
-        deployProperties = readProperties file: PROPERTIES_FILE_NAME
+        // TODO read and set deployProperties
     }
 }
 
