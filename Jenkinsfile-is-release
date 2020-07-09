@@ -17,30 +17,8 @@ pipeline {
             steps {
                 script {
                     readDeployProperties()
-                    /* echo deployProperties.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
-                    echo isRelease() */
-                }
-            }
-        }
-        stage('Approve promotion') {
-            when {
-                expression { return isRelease() && getDeployProperty('staging-repo.url') != '' }
-            }
-            steps {
-                script {
-                    def pipelineName = "Kogito Runtimes promote pipeline"
-                    withCredentials([string(credentialsId: "KOGITO_CI_EMAIL_TO", variable: 'ZULIP_EMAIL')]) {
-                        emailext body: "${pipelineName} #${env.BUILD_NUMBER} is ready for promotion.\n" +
-                                 "The staging repository can be found at: ${getDeployProperty('staging-repo.url')}\n" +
-                                 "Approve the promotion here: ${env.BUILD_URL}input",
-                                 subject: "${pipelineName}",
-                                 to: ZULIP_EMAIL
-                    }
-                    /* echo "${pipelineName} #${env.BUILD_NUMBER} is ready for promotion.\n" + 
-                         "The staging repository can be found at: ${getDeployProperty('staging-repo.url')}\n" +
-                         "Approve the promotion here: ${env.BUILD_URL}input"
-                    echo "${pipelineName}"
-                    input message: "Approve for promotion?" */
+                    echo deployProperties.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
+                    echo "${isRelease()}"
                 }
             }
         }
@@ -83,7 +61,8 @@ String getParamOrDeployProperty(String paramKey, String deployPropertyKey){
 //////////////////////////////////////////////////////////////////////////////
 
 boolean isRelease() {
-    return params.RELEASE || getDeployProperty("release")
+    /* return params.RELEASE || getDeployProperty("release") */
+    return params.RELEASE || (getDeployProperty("release") == "true")
     /* return getParamOrDeployProperty("RELEASE", "release") */
 }
 
