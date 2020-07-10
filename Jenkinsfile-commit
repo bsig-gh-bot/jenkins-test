@@ -1,0 +1,19 @@
+@Library('jenkins-pipeline-shared-libraries-kmok')_
+
+pipeline {
+    agent any
+    stages {
+        stage('Tag repo') {
+            steps {
+                script {
+                    cleanWs()
+                    checkout(githubscm.resolveRepository('jenkins-test', "Kevin-Mok-Bot", "master", false))
+                    sh "echo a >> README.md"
+                    githubscm.commitChanges("Date")
+                    sh "git log"
+                    /* githubscm.pushObject('origin', "$BUILD_TAG", "bad") */
+                }
+            }
+        }
+    }
+}
