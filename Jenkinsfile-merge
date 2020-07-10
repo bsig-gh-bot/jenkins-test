@@ -12,7 +12,7 @@ pipeline {
     }
     parameters {
         string(name: 'DISPLAY_NAME', defaultValue: '', description: 'Setup a specific build display name')
-        string(name: 'DEPLOY_BUILD_URL', defaultValue: '', description: 'URL to jenkins deploy build to retrieve the `deployment.properties` file. If base parameters are defined, they will override the `deployment.properties` information')
+        string(name: 'DEPLOY_BUILD_URL', defaultValue: 'https://rhba-jenkins.rhev-ci-vms.eng.rdu2.redhat.com/job/custom/job/kmok/job/KOGITO-2375-props/lastSuccessfulBuild/', description: 'URL to jenkins deploy build to retrieve the `deployment.properties` file. If base parameters are defined, they will override the `deployment.properties` information')
         string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Override `deployment.properties`. Which branch to build? Set if you are not on a multibranch pipeline.')
         booleanParam(name: 'RELEASE', defaultValue: false, description: 'Override `deployment.properties`. Is this build for a release?')
         string(name: 'PROJECT_VERSION', defaultValue: '', description: 'Override `deployment.properties`. Optional if not RELEASE. If RELEASE, cannot be empty.')
@@ -124,12 +124,10 @@ void cloneAndMerge(String repo) {
     sh '''
     git checkout master
     git branch
-    git config user.email "you@example.com"
-    git config user.name "Your Name"
     '''
     githubscm.mergePR(getDeployProperty("${repo}.pr.link"), BOT_CREDS)
     sh "git branch"
-    /* githubscm.pushObject("origin", getBuildBranch(), BOT_CREDS) */
+    githubscm.pushObject("origin", getBuildBranch(), BOT_CREDS)
 }
 
 void tagLatest(String repo) {
