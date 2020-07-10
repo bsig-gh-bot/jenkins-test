@@ -1,4 +1,5 @@
-@Library('jenkins-pipeline-shared-libraries-kmok')_
+/* @Library('jenkins-pipeline-shared-libraries-kmok')_ */
+@Library('jenkins-pipeline-shared-libraries')_
 
 pipeline {
     agent any
@@ -11,7 +12,8 @@ pipeline {
                     sh "echo a >> README.md"
                     /* githubscm.commitChanges("Date") */
                     sh "git config --list|head"
-                    githubscm.commitChanges("Date", '--all', 'KM', 'km@km.com')
+                    /* githubscm.commitChanges("Date", '--all', 'KM', 'km@km.com') */
+                    githubscm.commitChanges('KM', 'km@km.com', "Date", '--all')
                     sh "git config --list|head"
                     sh "git log -1"
                     /* githubscm.pushObject('origin', "$BUILD_TAG", "bad") */
