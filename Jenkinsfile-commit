@@ -9,8 +9,11 @@ pipeline {
                     cleanWs()
                     checkout(githubscm.resolveRepository('jenkins-test', "Kevin-Mok-Bot", "master", false))
                     sh "echo a >> README.md"
-                    githubscm.commitChanges("Date")
-                    sh "git log"
+                    /* githubscm.commitChanges("Date") */
+                    sh "git config --list|head"
+                    githubscm.commitChanges("Date", '--all', 'KM', 'km@km.com')
+                    sh "git config --list|head"
+                    sh "git log -1"
                     /* githubscm.pushObject('origin', "$BUILD_TAG", "bad") */
                 }
             }
