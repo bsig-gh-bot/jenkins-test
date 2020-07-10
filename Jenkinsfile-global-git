@@ -1,0 +1,14 @@
+@Library('jenkins-pipeline-shared-libraries-kmok')_
+
+pipeline {
+    agent any
+    stages {
+        stage('Initialize deploy properties') {
+            steps {
+                script {
+                    githubscm.getGlobalGitUser()
+                }
+            }
+        }
+    }
+}
