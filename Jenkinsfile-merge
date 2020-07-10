@@ -1,4 +1,5 @@
-@Library('jenkins-pipeline-shared-libraries-kmok')_
+/* @Library('jenkins-pipeline-shared-libraries-kmok')_ */
+@Library('jenkins-pipeline-shared-libraries')_
 
 deployProperties = [:]
 
@@ -122,12 +123,13 @@ String getBuildBranch() {
 void cloneAndMerge(String repo) {
     checkout(githubscm.resolveRepository(repo, "Kevin-Mok-Bot", getBuildBranch(), false))
     sh '''
+    git log -3
     git checkout master
     git branch
     '''
     githubscm.mergePR(getDeployProperty("${repo}.pr.link"), BOT_CREDS)
-    sh "git branch"
-    githubscm.pushObject("origin", getBuildBranch(), BOT_CREDS)
+    sh "git log -3"
+    /* githubscm.pushObject("origin", getBuildBranch(), BOT_CREDS) */
 }
 
 void tagLatest(String repo) {
