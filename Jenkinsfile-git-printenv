@@ -1,0 +1,12 @@
+pipeline {
+    agent any
+    stages {
+        stage('Initialize deploy properties') {
+            steps {
+                script {
+                    sh "printenv"
+                }
+            }
+        }
+    }
+}

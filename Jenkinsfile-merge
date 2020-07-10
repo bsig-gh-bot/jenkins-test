@@ -48,7 +48,7 @@ pipeline {
             }
             steps {
                 dir("kogito-runtimes") {
-                    cloneAndMerge("kogito-runtimes")
+                    cloneAndMerge("jenkins-test")
                 }
                 /* dir("kogito-apps") {
                     cloneAndMerge("kogito-apps")
