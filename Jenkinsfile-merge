@@ -1,30 +1,43 @@
-@Library('jenkins-pipeline-shared-libraries')_
+@Library('jenkins-pipeline-shared-libraries-kmok')_
 
 deployProperties = [:]
 
 pipeline {
-    agent any
+    agent {
+        label 'kie-rhel7-priority'
+    }
     environment {
         PROPERTIES_FILE_NAME = "deployment.properties"
+        BOT_CREDS = "kmok-github-bot"
     }
     parameters {
-        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Is this build for a release?')
-        string(name: 'DEPLOY_BUILD_URL', defaultValue: 'http://localhost:8090/job/2287/7/', description: 'URL to jenkins deploy build to retrieve the `deployment.properties` file. If base parameters are defined, they will override the `deployment.properties` information')
+        string(name: 'DISPLAY_NAME', defaultValue: '', description: 'Setup a specific build display name')
+        string(name: 'DEPLOY_BUILD_URL', defaultValue: '', description: 'URL to jenkins deploy build to retrieve the `deployment.properties` file. If base parameters are defined, they will override the `deployment.properties` information')
+        string(name: 'BUILD_BRANCH_NAME', defaultValue: 'master', description: 'Override `deployment.properties`. Which branch to build? Set if you are not on a multibranch pipeline.')
+        booleanParam(name: 'RELEASE', defaultValue: false, description: 'Override `deployment.properties`. Is this build for a release?')
+        string(name: 'PROJECT_VERSION', defaultValue: '', description: 'Override `deployment.properties`. Optional if not RELEASE. If RELEASE, cannot be empty.')
+        string(name: 'GIT_TAG', defaultValue: '', description: 'Git tag to set, if different from PROJECT_VERSION')
     }
     stages {
-        stage('Initialize deploy properties') {
-            when {
-                expression { return params.DEPLOY_BUILD_URL != '' }
-            }
+        stage('Initialization') {
             steps {
                 script {
+                    if (params.DISPLAY_NAME != "") {
+                        currentBuild.displayName = params.DISPLAY_NAME
+                    }
+
                     readDeployProperties()
-                    echo deployProperties.collect{ entry ->  "${entry.key}=${entry.value}" }.join("\n")
-                    echo isRelease()
+
+                    if (isRelease()) {
+                        assert getProjectVersion() != ''
+                    }
+                    if (getGitTag() != ""){
+                        assert getBuildBranch() != ''
+                    }
                 }
             }
         }
-        stage('Merge PR') { // TODO
+        stage('Merge PR') {
             when {
                 expression {
                     return isRelease() && 
@@ -33,11 +46,16 @@ pipeline {
                            getDeployProperty('kogito-examples.pr.link') != ''
                 }
             }
-            steps{
-                script {
-                    /* githubscm.mergePR() */
-                    echo "Merge PR"
+            steps {
+                dir("kogito-runtimes") {
+                    cloneAndMerge("kogito-runtimes")
                 }
+                /* dir("kogito-apps") {
+                    cloneAndMerge("kogito-apps")
+                }
+                dir("kogito-examples") {
+                    cloneAndMerge("kogito-examples")
+                } */
             }
         }
     }
@@ -48,11 +66,11 @@ pipeline {
 //////////////////////////////////////////////////////////////////////////////
 
 void readDeployProperties(){
-    if (params.DEPLOY_BUILD_URL != null){
-        withCredentials([usernamePassword(credentialsId: 'kmok-jenkins', usernameVariable: 'JENKINS_USER', passwordVariable: 'JENKINS_TOKEN')]) {
-            sh "wget --auth-no-challenge --user=${JENKINS_USER} --password=${JENKINS_TOKEN} ${params.DEPLOY_BUILD_URL}artifact/${PROPERTIES_FILE_NAME}"
-        }
+    if (params.DEPLOY_BUILD_URL != ''){
+        sh "wget ${params.DEPLOY_BUILD_URL}artifact/${PROPERTIES_FILE_NAME}"
         deployProperties = readProperties file: PROPERTIES_FILE_NAME
+        // echo all properties
+        echo deployProperties.collect{ entry -> "${entry.key}=${entry.value}" }.join("\n")
     }
 }
 
@@ -79,12 +97,15 @@ String getParamOrDeployProperty(String paramKey, String deployPropertyKey){
 //////////////////////////////////////////////////////////////////////////////
 
 boolean isRelease() {
-    return params.RELEASE || getDeployProperty("release")
-    /* return getParamOrDeployProperty("RELEASE", "release") */
+    return params.RELEASE || (getDeployProperty("release") == "true")
 }
 
 String getProjectVersion() {
     return getParamOrDeployProperty("PROJECT_VERSION", "project.version")
+}
+
+String getSnapshotVersion() {
+    return util.getNextSnapshot(getProjectVersion())
 }
 
 String getGitTag() {
@@ -93,4 +114,25 @@ String getGitTag() {
 
 String getBuildBranch() {
     return getParamOrDeployProperty("BUILD_BRANCH_NAME", "git.branch")
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Git
+//////////////////////////////////////////////////////////////////////////////
+void cloneAndMerge(String repo) {
+    checkout(githubscm.resolveRepository(repo, "Kevin-Mok-Bot", getBuildBranch(), false))
+    sh '''
+    git checkout master
+    git branch
+    git config user.email "you@example.com"
+    git config user.name "Your Name"
+    '''
+    githubscm.mergePR(getDeployProperty("${repo}.pr.link"), BOT_CREDS)
+    sh "git branch"
+    /* githubscm.pushObject("origin", getBuildBranch(), BOT_CREDS) */
+}
+
+void tagLatest(String repo) {
+    githubscm.tagRepository(env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL, getGitTag(), BUILD_TAG)
+    githubscm.pushObject("origin", getGitTag(), BOT_CREDS)
 }
