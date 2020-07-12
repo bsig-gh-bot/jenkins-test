@@ -1,0 +1,24 @@
+@Library('jenkins-pipeline-shared-libraries-kmok')_
+
+pipeline {
+    agent any
+    stages {
+        stage('Initialize deploy properties') {
+            steps {
+                script {
+                    checkout(githubscm.resolveRepository("jenkins-test", "Kevin-Mok-Bot", "master", false))
+                    sh """
+                    git branch
+                    git checkout master
+                    git branch
+                    """
+                    githubscm.mergePR("https://github.com/Kevin-Mok-Bot/jenkins-test/pull/21", "kmok-github-bot")
+                    sh """
+                    git log -3
+                    git status
+                    """
+                }
+            }
+        }
+    }
+}
